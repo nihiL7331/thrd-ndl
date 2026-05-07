@@ -1,4 +1,3 @@
-# thrd-ndl
 <div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/header_dark.svg">
