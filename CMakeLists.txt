@@ -16,6 +16,7 @@ set(SOURCE_FILES
   src/tcb.c
   src/platform.c
   src/scheduler.c
+  src/mutex.c
 )
 
 add_library(thrd_ndl STATIC ${SOURCE_FILES})
@@ -35,6 +36,3 @@ target_compile_options(thrd_ndl PRIVATE
 
 enable_testing()
 add_subdirectory(tests)
-
-add_executable(test_pingpong src/pingpong.c)
-target_link_libraries(test_pingpong PRIVATE thrd_ndl)
