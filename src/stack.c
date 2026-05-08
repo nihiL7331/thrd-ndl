@@ -33,27 +33,10 @@ void os_free(void* ptr, size_t size) {
 #endif
 }
 
-// memory page size
-const size_t page_size(void) {
-#if defined(_WIN32)
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    return (size_t)sysInfo.dwPageSize;
-#else
-    return (size_t)sysconf(_SC_PAGESIZE);
-#endif
-}
-
 int protect_page(void* ptr, size_t size) {
 #if defined (_WIN32)
   return (int)VirtualProtect(ptr, size, PAGE_NOACCESS);
 #else
   return mprotect(ptr, size, PROT_NONE);
 #endif
-}
-
-// aligns the given 'size' to a multiple of 'page_size'
-const size_t align_to_page(size_t size) {
-  size_t pg_size = page_size();
-  return (size + (pg_size - 1)) & ~(pg_size - 1);
 }
