@@ -1,5 +1,6 @@
 #include <thrd_ndl/thrd_ndl.h>
 #include <stdlib.h>
+#include "internal.h"
 #include "tcb.h"
 
 extern void thrd_ndl_switch(tcb_t* old_tcb, tcb_t* new_tcb);
@@ -47,6 +48,17 @@ void thrd_init(void) {
 
   curr_thread = init_thread;
 }
+
+int thrd_create(void (*func)(void)) {
+  tcb_t* new_tcb = tcb_init(func);
+  if (new_tcb == NULL)
+    return THRD_OOM;
+
+  thrd_enqueue(new_tcb);
+
+  return THRD_SUCCESS;
+}
+
 // helpers
 
 static void thrd_enqueue(tcb_t* ptr) {
