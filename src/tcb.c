@@ -23,7 +23,7 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   }
 
   // protect the bottom page
-  if (!protect_page(stack_ptr, page_size())) {
+  if (protect_page(stack_ptr, page_size()) != 0) {
     free(tcb);
     os_free(stack_ptr, size);
     return NULL;
