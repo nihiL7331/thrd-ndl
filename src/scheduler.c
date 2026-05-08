@@ -22,8 +22,11 @@ void thrd_yield(void) {
 
   // push 'curr_thread' to ready queue
   curr_thread->state = READY;
+  curr_thread->next = NULL;
   if (rdy_queue_tl != NULL)
     rdy_queue_tl->next = curr_thread;
+  else
+    rdy_queue_hd = curr_thread;
   rdy_queue_tl = curr_thread;
 
   // set 'next_thread' as 'curr_thread'
