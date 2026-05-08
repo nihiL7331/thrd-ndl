@@ -1,7 +1,7 @@
 #include "platform.h"
 #include <stdint.h>
 
-#if defined(_WIN32)
+#ifdef _WIN32
   #define NOMINMAX
   #include <windows.h>
   #include <memoryapi.h>
@@ -31,7 +31,7 @@ uint64_t get_os_time(void) {
 
 // OS call for memory page
 void* os_alloc(size_t size) {
-#if defined(_WIN32)
+#ifdef _WIN32
   void* ptr = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   return ptr;
 #else
@@ -45,7 +45,7 @@ void os_free(void* ptr, size_t size) {
   if (ptr == NULL) 
     return;
 
-#if defined(_WIN32)
+#ifdef _WIN32
   (void)size;
   VirtualFree(ptr, 0, MEM_RELEASE);
 #else
@@ -66,7 +66,7 @@ int protect_page(void* ptr, size_t size) {
 size_t page_size(void) {
   static size_t cached_page_size = 0;
   if (cached_page_size == 0) {
-#if defined(_WIN32)
+#ifdef _WIN32
     SYSTEM_INFO sysInfo;
     GetSystemInfo(&sysInfo);
     return (size_t)sysInfo.dwPageSize;
