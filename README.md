@@ -12,10 +12,10 @@
 ## Roadmap
 
 - [ ] Implement a sleep queue with `thrd_sleep` API.
-- [ ] Implement thread blocking (`thrd_join`).
 - [ ] Feature mutex locking.
 - [ ] Implement conditional locking.
 - [ ] Replace ready queue with a Red-black tree implementation.
+- [x] Implement thread blocking (`thrd_join`).
 
 ## Sources
 
