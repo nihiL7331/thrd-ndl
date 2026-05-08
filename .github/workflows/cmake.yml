@@ -17,7 +17,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Configure CMake
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows-latest'
+      run: cmake -B '${{github.workspace}}/build' -G "MinGW Makefiles" -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Configure CMake (Linux)
+      if: matrix.os == 'ubuntu-latest'
       run:  cmake -B '${{github.workspace}}/build' -DCMAKE_BUILD_TYPE=Release
 
     - name: Build
