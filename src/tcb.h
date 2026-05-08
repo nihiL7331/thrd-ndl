@@ -3,9 +3,9 @@
 #include <stddef.h>
 
 typedef enum {
-  READY,
-  RUNNING,
-  DEAD,
+  THRD_READY,
+  THRD_RUNNING,
+  THRD_DEAD,
 } thrd_state_t;
 
 typedef struct tcb {

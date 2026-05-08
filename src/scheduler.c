@@ -23,12 +23,12 @@ void thrd_yield(void) {
 
   // push 'curr_thread' to ready queue
   thrd_enqueue(curr_thread);
-  curr_thread->state = READY;
+  curr_thread->state = THRD_READY;
 
   // set 'next_thread' as 'curr_thread'
   tcb_t* old_thread = curr_thread;
   curr_thread = next_thread;
-  curr_thread->state = RUNNING;
+  curr_thread->state = THRD_RUNNING;
 
   // call the asm context switch procedure
   thrd_ndl_switch(old_thread, curr_thread);
@@ -44,7 +44,7 @@ void thrd_init(void) {
   init_thread->bsp = NULL;
   init_thread->rsp = NULL;
   init_thread->next = NULL;
-  init_thread->state = RUNNING;
+  init_thread->state = THRD_RUNNING;
 
   curr_thread = init_thread;
 }
