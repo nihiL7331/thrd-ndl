@@ -21,9 +21,11 @@ void thrd_yield(void) {
   // pop the head
   tcb_t* next_thread = thrd_dequeue();
 
-  // push 'curr_thread' to ready queue
-  thrd_enqueue(curr_thread);
-  curr_thread->state = THRD_READY;
+  // push 'curr_thread' to ready queue if it's not dead
+  if (curr_thread->state != THRD_DEAD) {
+    thrd_enqueue(curr_thread);
+    curr_thread->state = THRD_READY;
+  }
 
   // set 'next_thread' as 'curr_thread'
   tcb_t* old_thread = curr_thread;
@@ -57,6 +59,12 @@ int thrd_create(void (*func)(void)) {
   thrd_enqueue(new_tcb);
 
   return THRD_SUCCESS;
+}
+
+void thrd_exit(void) {
+  curr_thread->state = THRD_DEAD;
+  
+  thrd_yield();
 }
 
 // helpers
