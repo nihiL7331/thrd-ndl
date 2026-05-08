@@ -1,4 +1,5 @@
 #include <thrd_ndl/thrd_ndl.h>
+#include <stdlib.h>
 #include "tcb.h"
 
 extern void thrd_ndl_switch(tcb_t* old_tcb, tcb_t* new_tcb);
@@ -36,4 +37,19 @@ void thrd_yield(void) {
 
   // call the asm context switch procedure
   thrd_ndl_switch(old_thread, curr_thread);
+}
+
+void thrd_init(void) {
+  // if the thread is already initialized, just return
+  if (curr_thread != NULL)
+    return;
+
+  // make a dummy thread
+  tcb_t* init_thread = (tcb_t*)malloc(sizeof(tcb_t));
+  init_thread->bsp = NULL;
+  init_thread->rsp = NULL;
+  init_thread->next = NULL;
+  init_thread->state = RUNNING;
+
+  curr_thread = init_thread;
 }
