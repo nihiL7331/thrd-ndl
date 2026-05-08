@@ -9,6 +9,14 @@
 
 </div>
 
+## Roadmap
+
+- [ ] Implement a sleep queue with `thrd_sleep` API.
+- [ ] Implement thread blocking (`thrd_join`).
+- [ ] Feature mutex locking.
+- [ ] Implement conditional locking.
+- [ ] Replace ready queue with a Red-black tree implementation.
+
 ## Sources
 
 * [Concurrent programming by begriffs](https://begriffs.com/posts/2020-03-23-concurrent-programming.html)
