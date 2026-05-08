@@ -1,14 +1,11 @@
 #include <thrd_ndl/thrd_ndl.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include "internal.h"
 #include "platform.h"
 #include "tcb.h"
+#include "utils.h"
 
 extern void thrd_ndl_switch(tcb_t* old_tcb, tcb_t* new_tcb);
-
-static void thrd_enqueue(tcb_t* ptr);
-static tcb_t* thrd_dequeue(void);
 
 static tcb_t* curr_thread = NULL;
 static tcb_t* rdy_queue_hd = NULL;
@@ -20,7 +17,7 @@ void thrd_yield(void) {
   // instantly update the state if the thrd was running
   if (curr_thread->state ==  THRD_RUNNING) {
     curr_thread->state = THRD_READY;
-    thrd_enqueue(curr_thread);
+    thrd_enqueue(curr_thread, &rdy_queue_hd, &rdy_queue_tl);
   }
 
   // if the thread that has the closest 'wakeup_time'
@@ -30,7 +27,7 @@ void thrd_yield(void) {
     tcb_t* awake_thread = sleep_queue_hd;
     sleep_queue_hd = sleep_queue_hd->next;
     awake_thread->state = THRD_READY;
-    thrd_enqueue(awake_thread);
+    thrd_enqueue(awake_thread, &rdy_queue_hd, &rdy_queue_tl);
   }
 
   // there's no one else waiting,
@@ -49,7 +46,7 @@ void thrd_yield(void) {
   }
 
   // pop the head
-  tcb_t* next_thread = thrd_dequeue();
+  tcb_t* next_thread = thrd_dequeue(&rdy_queue_hd, &rdy_queue_tl);
 
   // set 'next_thread' as 'curr_thread'
   tcb_t* old_thread = curr_thread;
@@ -85,7 +82,7 @@ int thrd_create(thrd_t* out_thread, void (*func)(void)) {
     *out_thread = (thrd_t)new_thread;
 
   // push to ready queue
-  thrd_enqueue(new_thread);
+  thrd_enqueue(new_thread, &rdy_queue_hd, &rdy_queue_tl);
 
   return THRD_SUCCESS;
 }
@@ -94,17 +91,14 @@ void thrd_exit(void) {
   // make the exiting thread dead
   curr_thread->state = THRD_DEAD;
 
-  tcb_t* curr = curr_thread->join_queue_hd;
-
-  // store 'next' because 'thrd_enqueue' overrides 'curr->next'
-  tcb_t* next = NULL;
+  tcb_t* awake_thread = thrd_dequeue(&curr_thread->join_queue_hd, &curr_thread->join_queue_tl);
 
   // set all the joined threads to ready so they can run
-  while (curr != NULL) {
-    curr->state = THRD_READY;
-    next = curr->next;
-    thrd_enqueue(curr);
-    curr = next;
+  while (awake_thread != NULL) {
+    awake_thread->state = THRD_READY;
+    thrd_enqueue(awake_thread, &rdy_queue_hd, &rdy_queue_tl);
+
+    awake_thread = thrd_dequeue(&curr_thread->join_queue_hd, &curr_thread->join_queue_tl);
   }
   
   thrd_yield();
@@ -121,12 +115,7 @@ void thrd_join(thrd_t thread) {
   curr_thread->state = THRD_BLOCKED;
 
   // append it to 'cast_thread's join queue
-  if (cast_thread->join_queue_tl != NULL)
-    cast_thread->join_queue_tl->next = curr_thread;
-  else
-    cast_thread->join_queue_hd = curr_thread;
-  cast_thread->join_queue_tl = curr_thread;
-  curr_thread->next = NULL;
+  thrd_enqueue(curr_thread, &cast_thread->join_queue_hd, &cast_thread->join_queue_tl);
 
   // yield
   thrd_yield();
@@ -164,27 +153,4 @@ void thrd_sleep(uint64_t time_ms) {
   curr_thread->next = curr;
 
   thrd_yield();
-}
-
-// helpers
-
-static void thrd_enqueue(tcb_t* ptr) {
-  ptr->next = NULL;
-
-  if (rdy_queue_tl != NULL)
-    rdy_queue_tl->next = ptr;
-  else
-    rdy_queue_hd = ptr;
-
-  rdy_queue_tl = ptr;
-}
-
-static tcb_t* thrd_dequeue(void) {
-  tcb_t* pop_thrd = rdy_queue_hd;
-  
-  rdy_queue_hd = pop_thrd->next;
-  if (rdy_queue_hd == NULL)
-    rdy_queue_tl = NULL;
-
-  return pop_thrd;
 }
