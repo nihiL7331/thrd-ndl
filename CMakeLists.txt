@@ -15,6 +15,8 @@ set(SOURCE_FILES
   ${ARCH_SRC}
   src/tcb.c
   src/stack.c
+  src/arch/x86_64/context.S
+  src/scheduler.c
 )
 
 add_library(thrd_ndl STATIC ${SOURCE_FILES})
