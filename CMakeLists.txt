@@ -14,7 +14,7 @@ endif()
 set(SOURCE_FILES
   ${ARCH_SRC}
   src/tcb.c
-  src/stack.c
+  src/platform.c
   src/scheduler.c
 )
 
@@ -35,3 +35,6 @@ target_compile_options(thrd_ndl PRIVATE
 
 enable_testing()
 add_subdirectory(tests)
+
+add_executable(test_pingpong src/pingpong.c)
+target_link_libraries(test_pingpong PRIVATE thrd_ndl)
