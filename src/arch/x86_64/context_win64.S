@@ -1,7 +1,6 @@
   .text
   .align 16
   .global thrd_ndl_switch
-  .type thrd_ndl_switch, @function
 
 thrd_ndl_switch:
   /* push callee-saved registers onto the current stack */
@@ -33,5 +32,3 @@ thrd_ndl_switch:
 
   /* jump to new thread */
   ret
-
-.size thrd_ndl_switch, . - thrd_ndl_switch
