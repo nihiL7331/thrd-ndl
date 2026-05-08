@@ -15,8 +15,12 @@ static tcb_t* rdy_queue_tl = NULL;
 void thrd_yield(void) {
   // there's no one else waiting,
   // keep running the thread
-  if (rdy_queue_hd == NULL)
-    return;
+  if (rdy_queue_hd == NULL) {
+    if(curr_thread->state == THRD_RUNNING) // there's still a thread running, just return
+      return;
+    else if (curr_thread->state == THRD_DEAD) // all threads are dead, close the program
+      exit(0);
+  }
 
   // pop the head
   tcb_t* next_thread = thrd_dequeue();
