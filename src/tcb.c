@@ -7,6 +7,12 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifdef _WIN32
+  #define CALLEE_SAVED_REG_CNT 8
+#else
+  #define CALLEE_SAVED_REG_CNT 6
+#endif
+
 tcb_t* tcb_init(void (*entry_point)(void)) {
   // allocate 'tcb_t' on the heap
   tcb_t* tcb = (tcb_t*)malloc(sizeof(tcb_t));
@@ -37,7 +43,9 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
 
   tcb->wakeup_time = 0;
 
-  // set up the stack frame:
+  // set up the stack frame.
+  // it is platform dependent:
+  // on windows, need to clear 2 more registers
 
   // push the cleanup function
   uint64_t* cast_ptr = (uint64_t*)tcb->rsp;
@@ -52,9 +60,10 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
 
   // clear the callee-saved registers
   // %rbx, %rbp, %r12, %r13, %r14, %r15
-  cast_ptr -= 6;
+  // additional %rdi and %rsi on windows
+  cast_ptr -= CALLEE_SAVED_REG_CNT;
   tcb->rsp = (void*)cast_ptr;
-  memset(tcb->rsp, 0x0, 6 * sizeof(void*));
+  memset(tcb->rsp, 0x0, CALLEE_SAVED_REG_CNT * sizeof(void*));
 
   return tcb;
 }
