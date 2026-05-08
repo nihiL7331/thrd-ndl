@@ -32,6 +32,9 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   tcb->bsp = stack_ptr;
   tcb->rsp = (uint8_t*)stack_ptr + size;
 
+  tcb->join_queue_hd = NULL;
+  tcb->join_queue_tl = NULL;
+
   // set up the stack frame:
 
   // push the cleanup function

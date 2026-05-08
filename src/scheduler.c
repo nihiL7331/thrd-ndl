@@ -20,13 +20,15 @@ void thrd_yield(void) {
       return;
     else if (curr_thread->state == THRD_DEAD) // all threads are dead, close the program
       exit(0);
+    else if (curr_thread->state == THRD_BLOCKED) // all threads are sleeping, UB
+      exit(1);
   }
 
   // pop the head
   tcb_t* next_thread = thrd_dequeue();
 
   // push 'curr_thread' to ready queue if it's not dead
-  if (curr_thread->state != THRD_DEAD) {
+  if (curr_thread->state != THRD_DEAD && curr_thread->state != THRD_BLOCKED) {
     thrd_enqueue(curr_thread);
     curr_thread->state = THRD_READY;
   }
@@ -55,19 +57,60 @@ void thrd_init(void) {
   curr_thread = init_thread;
 }
 
-int thrd_create(void (*func)(void)) {
-  tcb_t* new_tcb = tcb_init(func);
-  if (new_tcb == NULL)
+int thrd_create(thrd_t* out_thread, void (*func)(void)) {
+  tcb_t* new_thread = tcb_init(func);
+  if (new_thread == NULL)
     return THRD_OOM;
 
-  thrd_enqueue(new_tcb);
+  // pass the address to the pointer given by the user
+  if (out_thread != NULL)
+    *out_thread = (thrd_t)new_thread;
+
+  // push to ready queue
+  thrd_enqueue(new_thread);
 
   return THRD_SUCCESS;
 }
 
 void thrd_exit(void) {
+  // make the exiting thread dead
   curr_thread->state = THRD_DEAD;
+
+  tcb_t* curr = curr_thread->join_queue_hd;
+
+  // store 'next' because 'thrd_enqueue' overrides 'curr->next'
+  tcb_t* next = NULL;
+
+  // set all the joined threads to ready so they can run
+  while (curr != NULL) {
+    curr->state = THRD_READY;
+    next = curr->next;
+    thrd_enqueue(curr);
+    curr = next;
+  }
   
+  thrd_yield();
+}
+
+void thrd_join(thrd_t thread) {
+  tcb_t* cast_thread = (tcb_t*)thread;
+
+  // if thread is dead, return
+  if (cast_thread->state == THRD_DEAD)
+    return;
+
+  // mark it as blocked
+  curr_thread->state = THRD_BLOCKED;
+
+  // append it to 'cast_thread's join queue
+  if (cast_thread->join_queue_tl != NULL)
+    cast_thread->join_queue_tl->next = curr_thread;
+  else
+    cast_thread->join_queue_hd = curr_thread;
+  cast_thread->join_queue_tl = curr_thread;
+  curr_thread->next = NULL;
+
+  // yield
   thrd_yield();
 }
 

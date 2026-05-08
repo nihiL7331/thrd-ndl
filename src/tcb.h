@@ -6,6 +6,7 @@ typedef enum {
   THRD_READY,
   THRD_RUNNING,
   THRD_DEAD,
+  THRD_BLOCKED,
 } thrd_state_t;
 
 typedef struct tcb {
@@ -13,7 +14,10 @@ typedef struct tcb {
   thrd_state_t state; // current state of the thread
   void* bsp;          // base stack pointer
   size_t stack_size;
+
   struct tcb* next;
+  struct tcb* join_queue_hd;
+  struct tcb* join_queue_tl;
 } tcb_t;
 
 tcb_t* tcb_init(void (*entry_point)(void));
