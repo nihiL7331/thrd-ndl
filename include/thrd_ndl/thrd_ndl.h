@@ -9,11 +9,20 @@
 
 typedef void* thrd_t;
 
+typedef struct mutex {
+  int is_locked;
+  void* wait_queue_hd;
+  void* wait_queue_tl;
+} mutex_t;
+
 void thrd_exit(void);
 void thrd_yield(void);
 void thrd_init(void);
 int thrd_create(thrd_t* out_thread, void (*func)(void));
 void thrd_join(thrd_t thread);
 void thrd_sleep(uint64_t time_ms);
+
+void mutex_lock(mutex_t* mutex);
+void mutex_unlock(mutex_t* mutex);
 
 #endif
