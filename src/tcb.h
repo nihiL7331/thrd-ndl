@@ -15,3 +15,5 @@ typedef struct tcb {
   size_t stack_size;
   struct tcb* next;
 } tcb_t;
+
+tcb_t* tcb_init(void (*entry_point)(void));
