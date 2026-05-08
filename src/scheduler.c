@@ -155,3 +155,15 @@ void thrd_sleep(uint64_t time_ms) {
 
   thrd_yield();
 }
+
+tcb_t* get_curr_thrd(void) {
+  return curr_thrd;
+}
+
+void resume_thrd(tcb_t* thrd) {
+  if (thrd == NULL)
+    return;
+
+  thrd->state = THRD_READY;
+  thrd_enqueue(thrd, &rdy_queue_hd, &rdy_queue_tl);
+}
