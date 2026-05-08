@@ -4,6 +4,9 @@
 
 extern void thrd_ndl_switch(tcb_t* old_tcb, tcb_t* new_tcb);
 
+static void thrd_enqueue(tcb_t* ptr);
+static tcb_t* thrd_dequeue(void);
+
 static tcb_t* curr_thread = NULL;
 static tcb_t* rdy_queue_hd = NULL;
 static tcb_t* rdy_queue_tl = NULL;
@@ -15,20 +18,11 @@ void thrd_yield(void) {
     return;
 
   // pop the head
-  tcb_t* next_thread = rdy_queue_hd;
-  
-  rdy_queue_hd = rdy_queue_hd->next;
-  if (rdy_queue_hd == NULL)
-    rdy_queue_tl = NULL;
+  tcb_t* next_thread = thrd_dequeue();
 
   // push 'curr_thread' to ready queue
+  thrd_enqueue(curr_thread);
   curr_thread->state = READY;
-  curr_thread->next = NULL;
-  if (rdy_queue_tl != NULL)
-    rdy_queue_tl->next = curr_thread;
-  else
-    rdy_queue_hd = curr_thread;
-  rdy_queue_tl = curr_thread;
 
   // set 'next_thread' as 'curr_thread'
   tcb_t* old_thread = curr_thread;
@@ -52,4 +46,26 @@ void thrd_init(void) {
   init_thread->state = RUNNING;
 
   curr_thread = init_thread;
+}
+// helpers
+
+static void thrd_enqueue(tcb_t* ptr) {
+  ptr->next = NULL;
+
+  if (rdy_queue_tl != NULL)
+    rdy_queue_tl->next = ptr;
+  else
+    rdy_queue_hd = ptr;
+
+  rdy_queue_tl = ptr;
+}
+
+static tcb_t* thrd_dequeue(void) {
+  tcb_t* pop_thrd = rdy_queue_hd;
+  
+  rdy_queue_hd = pop_thrd->next;
+  if (rdy_queue_hd == NULL)
+    rdy_queue_tl = NULL;
+
+  return pop_thrd;
 }
