@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "internal.h"
+#include "platform.h"
 #include "tcb.h"
 
 extern void thrd_ndl_switch(tcb_t* old_tcb, tcb_t* new_tcb);
