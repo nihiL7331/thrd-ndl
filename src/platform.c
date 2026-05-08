@@ -32,7 +32,7 @@ uint64_t get_os_time(void) {
 // OS call for memory page
 void* os_alloc(size_t size) {
 #if defined(_WIN32)
-  void* ptr = VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+  void* ptr = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   return ptr;
 #else
   void* ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
@@ -55,7 +55,9 @@ void os_free(void* ptr, size_t size) {
 
 int protect_page(void* ptr, size_t size) {
 #if defined (_WIN32)
-  return (int)VirtualProtect(ptr, size, PAGE_NOACCESS);
+  DWORD old_prot = 0;
+  BOOL success = (int)VirtualProtect(ptr, size, PAGE_NOACCESS, &old_prot);
+  return success ? 0 : -1;
 #else
   return mprotect(ptr, size, PROT_NONE);
 #endif
