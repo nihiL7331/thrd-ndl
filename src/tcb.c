@@ -35,6 +35,8 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   tcb->join_queue_hd = NULL;
   tcb->join_queue_tl = NULL;
 
+  tcb->wakeup_time = 0;
+
   // set up the stack frame:
 
   // push the cleanup function

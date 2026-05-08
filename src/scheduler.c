@@ -1,5 +1,6 @@
 #include <thrd_ndl/thrd_ndl.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "internal.h"
 #include "tcb.h"
 
@@ -12,26 +13,42 @@ static tcb_t* curr_thread = NULL;
 static tcb_t* rdy_queue_hd = NULL;
 static tcb_t* rdy_queue_tl = NULL;
 
+static tcb_t* sleep_queue_hd = NULL;
+
 void thrd_yield(void) {
+  // instantly update the state if the thrd was running
+  if (curr_thread->state ==  THRD_RUNNING) {
+    curr_thread->state = THRD_READY;
+    thrd_enqueue(curr_thread);
+  }
+
+  // if the thread that has the closest 'wakeup_time'
+  // is waking up, then pop it off the sleep queue
+  uint64_t curr_time_ms = get_os_time();
+  while (sleep_queue_hd != NULL && curr_time_ms >= sleep_queue_hd->wakeup_time) {
+    tcb_t* awake_thread = sleep_queue_hd;
+    sleep_queue_hd = sleep_queue_hd->next;
+    awake_thread->state = THRD_READY;
+    thrd_enqueue(awake_thread);
+  }
+
   // there's no one else waiting,
   // keep running the thread
   if (rdy_queue_hd == NULL) {
-    if(curr_thread->state == THRD_RUNNING) // there's still a thread running, just return
+    if (sleep_queue_hd != NULL) {
+      // wait here until thread wakes up,
+      while (get_os_time() < sleep_queue_hd->wakeup_time);
+      // then go back to the top of the function
+      thrd_yield();
       return;
-    else if (curr_thread->state == THRD_DEAD) // all threads are dead, close the program
+    } else if (curr_thread->state == THRD_DEAD) // all threads are dead, close the program
       exit(0);
-    else if (curr_thread->state == THRD_BLOCKED) // all threads are sleeping, UB
+    else // all threads are sleeping / UB
       exit(1);
   }
 
   // pop the head
   tcb_t* next_thread = thrd_dequeue();
-
-  // push 'curr_thread' to ready queue if it's not dead
-  if (curr_thread->state != THRD_DEAD && curr_thread->state != THRD_BLOCKED) {
-    thrd_enqueue(curr_thread);
-    curr_thread->state = THRD_READY;
-  }
 
   // set 'next_thread' as 'curr_thread'
   tcb_t* old_thread = curr_thread;
@@ -111,6 +128,40 @@ void thrd_join(thrd_t thread) {
   curr_thread->next = NULL;
 
   // yield
+  thrd_yield();
+}
+
+void thrd_sleep(uint64_t time_ms) {
+  if (curr_thread == NULL)
+    return;
+
+  // get absolute os time
+  uint64_t curr_time_ms = get_os_time();
+
+  // the head of the sleep queue will be compared against
+  // absolute os time to determine if it should wake up
+  curr_thread->wakeup_time = curr_time_ms + time_ms;
+  curr_thread->state = THRD_SLEEPING;
+
+  // insert the sleeping thread to sleep queue,
+  // assuming that before the insertion the list is sorted
+  // by wakeup time, insert it in a way that this promise isnt broken
+  tcb_t* curr = sleep_queue_hd;
+  tcb_t* prev = NULL;
+  while (curr != NULL && curr->wakeup_time < curr_thread->wakeup_time) {
+    prev = curr;
+    curr = curr->next;
+  }
+
+  // found position of the newly sleeping thread,
+  // insert it
+  if (prev != NULL)
+    prev->next = curr_thread;
+  else
+    sleep_queue_hd = curr_thread;
+
+  curr_thread->next = curr;
+
   thrd_yield();
 }
 
