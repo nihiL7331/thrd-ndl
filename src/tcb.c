@@ -1,5 +1,5 @@
 #include "tcb.h"
-#include "stack.h"
+#include "platform.h"
 #include "internal.h"
 #include <thrd_ndl/thrd_ndl.h>
 #include <stddef.h>
