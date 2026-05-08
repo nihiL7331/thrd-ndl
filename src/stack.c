@@ -51,3 +51,9 @@ int protect_page(void* ptr, size_t size) {
   return mprotect(ptr, size, PROT_NONE);
 #endif
 }
+
+// aligns the given 'size' to a multiple of 'page_size'
+const size_t align_to_page(size_t size) {
+  size_t pg_size = page_size();
+  return (size + (pg_size - 1)) & ~(pg_size - 1);
+}
