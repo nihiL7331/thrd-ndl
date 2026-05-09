@@ -28,7 +28,7 @@ void thrd_yield(void) {
       prev_dead = curr_dead;
       curr_dead = curr_dead->next;
     } else {
-      tcb_t* dead_thrd = dead_queue_hd;
+      tcb_t* dead_thrd = curr_dead;
 
       // remove from queue
       if (prev_dead == NULL)
