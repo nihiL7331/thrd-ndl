@@ -23,6 +23,7 @@ function(add_test_suite CATEGORY_NAME)
 endfunction()
 
 add_test_suite(mutex mutex)
+add_test_suite(cond cond)
 
 add_custom_target(test-all
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
