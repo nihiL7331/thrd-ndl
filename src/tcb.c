@@ -7,13 +7,13 @@
 #include <stdint.h>
 #include <string.h>
 
-#ifdef _WIN32
-  #define CALLEE_SAVED_REG_CNT 8
-#elif defined(__aarch64__) // no elifdef on C17:[
+#ifdef __aarch64__
   #define CALLEE_SAVED_REG_CNT 12
 
   // required for implicit 'thrd_exit'
   extern void thrd_tramp(void);
+#elif defined(_WIN32)
+  #define CALLEE_SAVED_REG_CNT 8
 #else
   #define CALLEE_SAVED_REG_CNT 6
 #endif
