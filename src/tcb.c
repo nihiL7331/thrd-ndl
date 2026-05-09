@@ -11,6 +11,9 @@
   #define CALLEE_SAVED_REG_CNT 8
 #elif defined(__aarch64__) // no elifdef on C17:[
   #define CALLEE_SAVED_REG_CNT 12
+
+  // required for implicit 'thrd_exit'
+  extern void thrd_tramp(void);
 #else
   #define CALLEE_SAVED_REG_CNT 6
 #endif
@@ -71,10 +74,18 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   stack -= CALLEE_SAVED_REG_CNT;
   memset(stack, 0x0, CALLEE_SAVED_REG_CNT * sizeof(void*));
 
-  // if on arm, place 'entry_point' pointer
-  // in the x30 register
 #ifdef __aarch64__
-  stack[1] = (uint64_t)entry_point;
+  // since x19 is callee-saved,
+  // store the function pointer in there safely.
+  stack[11] = (uint64_t)entry_point;
+
+  // this will be called on scope exit
+  // (just like entry_point on x86)
+  // arm requires a separate asm procedure,
+  // because on ret arm doesn't pop the stack
+  // (it uses x30 register to get the pointer)
+  // we copy this x86 behavior via 'thrd_tramp'
+  stack[1] = (uint64_t)thrd_tramp;
 #endif
 
   tcb->rsp = (void*)stack;

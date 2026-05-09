@@ -12,7 +12,12 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
     set(ARCH_SRC src/arch/x86_64/context_unix.S)
   endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64|ARM64)")
-  set(ARCH_SRC src/arch/arm64/context_arm64.S)
+  set(ARCH_SRC 
+    ${ARCH_SRC} 
+    src/arch/arm64/context_arm64.S
+    src/arch/arm64/tramp_arm64.S
+    PARENT_SCOPE
+  )
 else()
   message(FATAL_ERROR "arch '${CMAKE_SYSTEM_PROCESSOR}' not supported")
 endif()
