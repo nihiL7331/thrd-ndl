@@ -10,6 +10,8 @@
   #include <unistd.h>
   #include <time.h>
   #include <signal.h>
+
+  static int preempt_cnt = 0;
 #endif
 
 uint64_t get_os_time(void) {
@@ -82,10 +84,12 @@ void preempt_disable(void) {
 #ifdef _WIN32
   #error "TODO" 
 #else
-  sigset_t sigset;
-  sigemptyset(&sigset);
-  sigaddset(&sigset, SIGVTALRM);
-  sigprocmask(SIG_BLOCK, &sigset, NULL);
+  if (preempt_cnt++ == 0) {
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGVTALRM);
+    sigprocmask(SIG_BLOCK, &sigset, NULL);
+  }
 #endif
 }
 
@@ -93,9 +97,11 @@ void preempt_enable(void) {
 #ifdef _WIN32
   #error "TODO"
 #else
-  sigset_t sigset;
-  sigemptyset(&sigset);
-  sigaddset(&sigset, SIGVTALRM);
-  sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+  if (--preempt_cnt == 0) {
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGVTALRM);
+    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+  }
 #endif
 }
