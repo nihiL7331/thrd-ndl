@@ -19,6 +19,9 @@ static tcb_t* sleep_queue_hd = NULL;
 static tcb_t* dead_queue_hd = NULL;
 
 void thrd_yield(void) {
+restart:
+  preempt_disable();
+
   // free dead threads, skip ourself
   tcb_t* prev_dead = NULL;
   tcb_t* curr_dead = dead_queue_hd;
@@ -66,11 +69,13 @@ void thrd_yield(void) {
   // keep running the thread
   if (rdy_queue_hd == NULL) {
     if (sleep_queue_hd != NULL) {
+      preempt_enable();
+
       // wait here until thread wakes up,
       while (get_os_time() < sleep_queue_hd->wakeup_time);
+
       // then go back to the top of the function
-      thrd_yield();
-      return;
+      goto restart;
     } else if (curr_thrd->state == THRD_DEAD) // all threads are dead, close the program
       exit(0);
     else // all threads are sleeping / UB
@@ -87,6 +92,8 @@ void thrd_yield(void) {
 
   // call the asm context switch procedure
   thrd_ndl_switch(old_thrd, curr_thrd);
+
+  preempt_enable();
 }
 
 void thrd_init(void) {
@@ -117,13 +124,19 @@ int thrd_create(thrd_t* out_thread, void (*func)(void)) {
   if (out_thread != NULL)
     *out_thread = (thrd_t)new_thrd;
 
+  preempt_disable();
+
   // push to ready queue
   thrd_enqueue(new_thrd, &rdy_queue_hd, &rdy_queue_tl);
+
+  preempt_enable();
 
   return THRD_SUCCESS;
 }
 
 void thrd_exit(void) {
+  preempt_disable();
+
   // make the exiting thread dead
   curr_thrd->state = THRD_DEAD;
 
@@ -140,6 +153,10 @@ void thrd_exit(void) {
 
     awake_thrd = thrd_dequeue(&curr_thrd->join_queue_hd, &curr_thrd->join_queue_tl);
   }
+
+  // here preempt is enabled before yield,
+  // because the thread dies in that yield
+  preempt_enable();
   
   thrd_yield();
 }
@@ -147,9 +164,13 @@ void thrd_exit(void) {
 void thrd_join(thrd_t thread) {
   tcb_t* cast_thrd = (tcb_t*)thread;
 
+  preempt_disable();
+
   // if thread is dead, return
-  if (cast_thrd->state == THRD_DEAD)
+  if (cast_thrd->state == THRD_DEAD) {
+    preempt_enable();
     return;
+  }
 
   // mark it as blocked
   curr_thrd->state = THRD_BLOCKED;
@@ -159,11 +180,15 @@ void thrd_join(thrd_t thread) {
 
   // yield
   thrd_yield();
+
+  preempt_enable();
 }
 
 void thrd_sleep(uint64_t time_ms) {
   if (curr_thrd == NULL)
     return;
+
+  preempt_disable();
 
   // get absolute os time
   uint64_t curr_time_ms = get_os_time();
@@ -193,6 +218,8 @@ void thrd_sleep(uint64_t time_ms) {
   curr_thrd->next = curr;
 
   thrd_yield();
+
+  preempt_enable();
 }
 
 tcb_t* get_curr_thrd(void) {
@@ -203,6 +230,10 @@ void resume_thrd(tcb_t* thrd) {
   if (thrd == NULL)
     return;
 
+  preempt_disable();
+
   thrd->state = THRD_READY;
   thrd_enqueue(thrd, &rdy_queue_hd, &rdy_queue_tl);
+
+  preempt_enable();
 }

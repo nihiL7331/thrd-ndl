@@ -57,6 +57,7 @@ void* pool_alloc(pool_t* pool, size_t size, size_t align) {
   if (size == 0 || size > pool->chunk_size || align > pool->chunk_align)
     return NULL;
 
+  preempt_disable();
   while (atomic_flag_test_and_set_explicit(&pool->lock, memory_order_acquire));
 
   if (pool->free_hd == NULL) {
@@ -68,6 +69,7 @@ void* pool_alloc(pool_t* pool, size_t size, size_t align) {
   pool->free_hd = *(void**)pool->free_hd;
 
   atomic_flag_clear_explicit(&pool->lock, memory_order_release);
+  preempt_enable();
 
   return ret_head;
 }
@@ -79,12 +81,14 @@ int pool_free(pool_t* pool, void* ptr) {
   if (pool->start_ptr == NULL)
     return POOL_UNINIT;
 
+  preempt_disable();
   while (atomic_flag_test_and_set_explicit(&pool->lock, memory_order_acquire));
 
   *((void**)ptr) = pool->free_hd;
   pool->free_hd = ptr;
 
   atomic_flag_clear_explicit(&pool->lock, memory_order_release);
+  preempt_enable();
 
   return POOL_SUCCESS;
 }
@@ -96,6 +100,7 @@ int pool_clear(pool_t* pool) {
   if (pool->start_ptr == NULL)
     return POOL_UNINIT;
 
+  preempt_disable();
   while (atomic_flag_test_and_set_explicit(&pool->lock, memory_order_acquire));
 
   uint8_t* raw_mem = (uint8_t*)pool->start_ptr;
@@ -112,6 +117,7 @@ int pool_clear(pool_t* pool) {
   pool->free_hd = pool->start_ptr;
 
   atomic_flag_clear_explicit(&pool->lock, memory_order_release);
+  preempt_enable();
   
   return POOL_SUCCESS;
 }

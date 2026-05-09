@@ -1,3 +1,4 @@
+#include "platform.h"
 #include "scheduler.h"
 #include "tcb.h"
 #include "utils.h"
@@ -7,6 +8,8 @@
 void cond_wait(cond_t* cond, mutex_t* mutex) {
   if (cond == NULL || mutex == NULL)
     return;
+
+  preempt_disable();
 
   tcb_t* curr_thrd = get_curr_thrd();
 
@@ -23,22 +26,29 @@ void cond_wait(cond_t* cond, mutex_t* mutex) {
   // sleep until signaled
   thrd_yield();
 
+  preempt_enable();
+
   // lock back the mutex
   mutex_lock(mutex);
 }
 
 void cond_signal(cond_t* cond) {
-  if (cond->block_queue_hd == NULL)
-    return;
+  preempt_disable();
 
-  // pop the head from wait queue
-  tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
+  if (cond->block_queue_hd != NULL) {
+    // pop the head from wait queue
+    tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
 
-  // make 'signal_thrd' ready and push onto ready queue
-  resume_thrd(signal_thrd);
+    // make 'signal_thrd' ready and push onto ready queue
+    resume_thrd(signal_thrd);
+  }
+
+  preempt_enable();
 }
 
 void cond_bcast(cond_t* cond) {
+  preempt_disable();
+
   // do the same as in 'cond_signal', 
   // but for the whole queue
   while (cond->block_queue_hd != NULL) {
@@ -46,4 +56,6 @@ void cond_bcast(cond_t* cond) {
 
     resume_thrd(signal_thrd);
   }
+
+  preempt_enable();
 }
