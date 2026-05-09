@@ -29,8 +29,14 @@ void cond_wait(cond_t* cond, mutex_t* mutex) {
 }
 
 void cond_signal(cond_t* cond) {
-  (void)cond;
-  assert(0 && "TODO");
+  if (cond->block_queue_hd == NULL)
+    return;
+
+  // pop the head from wait queue
+  tcb_t* signal_thrd = thrd_dequeue((tcb_t**)cond->block_queue_hd, (tcb_t**)cond->block_queue_tl);
+
+  // make 'signal_thrd' ready and push onto ready queue
+  resume_thrd(signal_thrd);
 }
 
 void cond_bcast(cond_t* cond) {
