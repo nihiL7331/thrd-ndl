@@ -15,6 +15,11 @@ typedef struct mutex {
   void* wait_queue_tl;
 } mutex_t;
 
+typedef struct {
+  void* block_queue_hd;
+  void* block_queue_tl;
+} cond_t;
+
 void thrd_exit(void);
 void thrd_yield(void);
 void thrd_init(void);
@@ -24,5 +29,9 @@ void thrd_sleep(uint64_t time_ms);
 
 void mutex_lock(mutex_t* mutex);
 void mutex_unlock(mutex_t* mutex);
+
+void cond_wait(cond_t* cond, mutex_t* mutex);
+void cond_signal(cond_t* cond);
+void cond_bcast(cond_t* cond);
 
 #endif

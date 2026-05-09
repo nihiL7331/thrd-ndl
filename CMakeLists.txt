@@ -27,6 +27,7 @@ set(SOURCE_FILES
   src/platform.c
   src/scheduler.c
   src/mutex.c
+  src/cond.c
 )
 
 add_library(thrd_ndl STATIC ${SOURCE_FILES})
