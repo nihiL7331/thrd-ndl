@@ -20,8 +20,6 @@ void inc_task(void) {
 
     thrd_yield();
   }
-
-  thrd_exit();
 }
 
 int main(void) {
