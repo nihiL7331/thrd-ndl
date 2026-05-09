@@ -9,6 +9,7 @@
   #include <sys/mman.h>
   #include <unistd.h>
   #include <time.h>
+  #include <signal.h>
 #endif
 
 uint64_t get_os_time(void) {
@@ -54,7 +55,7 @@ void os_free(void* ptr, size_t size) {
 }
 
 int protect_page(void* ptr, size_t size) {
-#if defined (_WIN32)
+#ifdef _WIN32
   DWORD old_prot = 0;
   BOOL success = (int)VirtualProtect(ptr, size, PAGE_NOACCESS, &old_prot);
   return success ? 0 : -1;
@@ -75,4 +76,26 @@ size_t page_size(void) {
 #endif
   }
   return cached_page_size;
+}
+
+void preempt_disable(void) {
+#ifdef _WIN32
+  #error "TODO" 
+#else
+  sigset_t sigset;
+  sigemptyset(&sigset);
+  sigaddset(&sigset, SIGVTALRM);
+  sigprocmask(SIG_BLOCK, &sigset, NULL);
+#endif
+}
+
+void preempt_enable(void) {
+#ifdef _WIN32
+  #error "TODO"
+#else
+  sigset_t sigset;
+  sigemptyset(&sigset);
+  sigaddset(&sigset, SIGVTALRM);
+  sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+#endif
 }
