@@ -11,7 +11,7 @@
 
 ## Roadmap
 
-- [ ] Full ARM support.
+- [x] Full ARM support.
 - [ ] Start writing README.
 - [ ] Implement conditional locking.
 - [ ] Replace ready queue with a Red-black tree implementation.
