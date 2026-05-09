@@ -42,7 +42,7 @@ void thrd_yield(void) {
       os_free(dead_thrd->bsp, size);
 
       // free the thread struct
-      free(dead_thrd);
+      tcb_destroy(dead_thrd);
     }
   }
 
@@ -95,7 +95,7 @@ void thrd_init(void) {
     return;
 
   // make a dummy thread
-  tcb_t* init_thrd = (tcb_t*)malloc(sizeof(tcb_t));
+  tcb_t* init_thrd = tcb_alloc();
   init_thrd->bsp = NULL;
   init_thrd->rsp = NULL;
   init_thrd->next = NULL;

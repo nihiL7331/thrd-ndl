@@ -28,3 +28,5 @@ typedef struct tcb {
 } tcb_t;
 
 tcb_t* tcb_init(void (*entry_point)(void));
+void tcb_destroy(tcb_t* tcb);
+tcb_t* tcb_alloc(void);

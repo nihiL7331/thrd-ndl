@@ -1,9 +1,9 @@
 #include "tcb.h"
 #include "platform.h"
 #include "internal.h"
+#include "pool.h"
 #include <thrd_ndl/thrd_ndl.h>
 #include <stddef.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -18,9 +18,12 @@
   #define CALLEE_SAVED_REG_CNT 6
 #endif
 
+static pool_t tcb_pool = {0};
+static int pool_init = 0;
+
 tcb_t* tcb_init(void (*entry_point)(void)) {
   // allocate 'tcb_t' on the heap
-  tcb_t* tcb = (tcb_t*)malloc(sizeof(tcb_t));
+  tcb_t* tcb = tcb_alloc();
   if (tcb == NULL)
     return NULL;
 
@@ -29,13 +32,13 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   size_t size = align_to_page(THRD_STACK_SIZE + page_size());
   void* stack_ptr = os_alloc(size);
   if (stack_ptr == NULL) {
-    free(tcb);
+    tcb_destroy(tcb);
     return NULL;
   }
 
   // protect the bottom page
   if (protect_page(stack_ptr, page_size()) != 0) {
-    free(tcb);
+    tcb_destroy(tcb);
     os_free(stack_ptr, size);
     return NULL;
   }
@@ -90,5 +93,27 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
 
   tcb->rsp = (void*)stack;
 
+  return tcb;
+}
+
+void tcb_destroy(tcb_t* tcb) {
+  if (tcb == NULL || !pool_init)
+    return;
+
+  pool_free(&tcb_pool, (void*)tcb);
+}
+
+tcb_t* tcb_alloc(void) {
+  if (!pool_init) {
+    if (pool_new(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t), POOL_THREAD_CNT) != POOL_SUCCESS)
+      return NULL;
+    pool_init = 1;
+  }
+
+  tcb_t* tcb = pool_alloc(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t));
+  if (tcb == NULL)
+    return NULL;
+
+  memset(tcb, 0x0, sizeof(tcb_t));
   return tcb;
 }
