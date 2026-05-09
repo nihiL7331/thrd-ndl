@@ -8,8 +8,7 @@
   .align 4
   .global SYM_SWITCH
 
-thrd_ndl_switch:
-_thrd_ndl_switch:
+SYM_SWITCH:
   /* push callee-saved registers onto the current stack */
   /* pre decrement sp by 16 */
   stp x19, x20, [sp, #-16]!

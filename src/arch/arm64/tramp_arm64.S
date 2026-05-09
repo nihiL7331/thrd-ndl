@@ -10,8 +10,7 @@
   .align 4
   .global SYM_TRAMP
 
-thrd_tramp:
-_thrd_tramp:
+SYM_TRAMP:
   /* this procedure is repsonsible for
      ensuring that 'thrd_exit' is called
      when context switch finishes
