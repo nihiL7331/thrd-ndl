@@ -22,7 +22,7 @@ int pool_new(pool_t* pool, size_t chunk_size, size_t chunk_align, size_t chunk_c
 
   pool->total_size = pool->chunk_size * chunk_cnt;
 
-  pool->start_ptr = os_alloc(pool->total_size);
+  pool->start_ptr = os_alloc(align_to_page(pool->total_size));
   if (pool->start_ptr == NULL)
     return POOL_OOM;
 
