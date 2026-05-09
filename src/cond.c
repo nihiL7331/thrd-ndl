@@ -12,7 +12,7 @@ void cond_wait(cond_t* cond, mutex_t* mutex) {
   tcb_t* curr_thrd = get_curr_thrd();
 
   // push 'curr_thrd' onto 'cond' block queue
-  thrd_enqueue(curr_thrd, (tcb_t**)cond->block_queue_hd, (tcb_t**)cond->block_queue_tl);
+  thrd_enqueue(curr_thrd, (tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
 
   // make 'curr_thrd' blocked
   curr_thrd->state = THRD_BLOCKED;
@@ -33,13 +33,18 @@ void cond_signal(cond_t* cond) {
     return;
 
   // pop the head from wait queue
-  tcb_t* signal_thrd = thrd_dequeue((tcb_t**)cond->block_queue_hd, (tcb_t**)cond->block_queue_tl);
+  tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
 
   // make 'signal_thrd' ready and push onto ready queue
   resume_thrd(signal_thrd);
 }
 
 void cond_bcast(cond_t* cond) {
-  (void)cond;
-  assert(0 && "TODO");
+  // do the same as in 'cond_signal', 
+  // but for the whole queue
+  while (cond->block_queue_hd != NULL) {
+    tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
+
+    resume_thrd(signal_thrd);
+  }
 }
