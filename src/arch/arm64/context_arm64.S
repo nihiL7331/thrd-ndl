@@ -1,7 +1,12 @@
+#ifdef __APPLE__
+  #define SYM_SWITCH _thrd_ndl_switch
+#else
+  #define SYM_SWITCH thrd_ndl_switch
+#endif
+
   .text
   .align 4
-  .global thrd_ndl_switch
-  .global _thrd_ndl_switch /* macos compiler prefixes symbols with underscore */
+  .global SYM_SWITCH
 
 thrd_ndl_switch:
 _thrd_ndl_switch:
