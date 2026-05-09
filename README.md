@@ -11,9 +11,13 @@
 
 ## Roadmap
 
-- [ ] Feature mutex locking.
+- [ ] Full ARM support.
+- [ ] Start writing README.
 - [ ] Implement conditional locking.
 - [ ] Replace ready queue with a Red-black tree implementation.
+- [ ] Find a good and easy solution for preemption.
+- [ ] Handle clean up of dead threads.
+- [x] Feature mutex locking.
 - [x] Implement a sleep queue with `thrd_sleep` API.
 - [x] Implement thread blocking (`thrd_join`).
 
