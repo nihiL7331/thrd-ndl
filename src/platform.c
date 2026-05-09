@@ -1,5 +1,6 @@
 #include "platform.h"
 #include <stdint.h>
+#include <thrd_ndl/thrd_ndl.h>
 
 #ifdef _WIN32
   #define NOMINMAX
@@ -10,8 +11,10 @@
   #include <unistd.h>
   #include <time.h>
   #include <signal.h>
+  #include <sys/time.h>
 
   static int preempt_cnt = 0;
+  #define PREEMPT_TIMER_INTERVAL 10000
 #endif
 
 uint64_t get_os_time(void) {
@@ -103,5 +106,36 @@ void preempt_enable(void) {
     sigaddset(&sigset, SIGVTALRM);
     sigprocmask(SIG_UNBLOCK, &sigset, NULL);
   }
+#endif
+}
+
+#ifndef _WIN32
+static void signal_handler(int num) {
+  (void)num;
+  thrd_yield();
+}
+#endif
+
+void timer_init(void) {
+#ifdef _WIN32
+  #error "TODO"
+#else
+  struct sigaction action = {
+    .sa_handler = signal_handler,
+    .sa_flags = SA_NODEFER,
+  };
+  sigaction(SIGVTALRM, &action, NULL);
+
+  struct itimerval timer = {
+    .it_value = {
+      .tv_sec = 0,
+      .tv_usec = PREEMPT_TIMER_INTERVAL,
+    },
+    .it_interval = {
+      .tv_sec = 0,
+      .tv_usec = PREEMPT_TIMER_INTERVAL,
+    },
+  };
+  setitimer(ITIMER_VIRTUAL, &timer, NULL);
 #endif
 }
