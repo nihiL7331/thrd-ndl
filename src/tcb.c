@@ -77,7 +77,7 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
 #ifdef __aarch64__
   // since x19 is callee-saved,
   // store the function pointer in there safely.
-  stack[11] = (uint64_t)entry_point;
+  stack[10] = (uint64_t)entry_point;
 
   // this will be called on scope exit
   // (just like entry_point on x86)
