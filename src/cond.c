@@ -11,8 +11,8 @@ void cond_wait(cond_t* cond, mutex_t* mutex) {
 
   tcb_t* curr_thrd = get_curr_thrd();
 
-  // push 'curr_thrd' onto 'cond' wait queue
-  thrd_enqueue(curr_thrd, (tcb_t**)mutex->wait_queue_hd, (tcb_t**)mutex->wait_queue_tl);
+  // push 'curr_thrd' onto 'cond' block queue
+  thrd_enqueue(curr_thrd, (tcb_t**)cond->block_queue_hd, (tcb_t**)cond->block_queue_tl);
 
   // make 'curr_thrd' blocked
   curr_thrd->state = THRD_BLOCKED;
