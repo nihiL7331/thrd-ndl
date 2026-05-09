@@ -113,6 +113,11 @@ void thrd_init(void) {
   init_thrd->state = THRD_RUNNING;
 
   curr_thrd = init_thrd;
+
+  // initialize the preemption timer
+  // at the end, so that it doesnt fire
+  // during the previous thread allocation
+  timer_init();
 }
 
 int thrd_create(thrd_t* out_thread, void (*func)(void)) {
