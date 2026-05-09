@@ -1,7 +1,9 @@
 #include "scheduler.h"
+#include <stddef.h>
 #include <thrd_ndl/thrd_ndl.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "internal.h"
 #include "platform.h"
 #include "tcb.h"
 #include "utils.h"
@@ -14,7 +16,36 @@ static tcb_t* rdy_queue_tl = NULL;
 
 static tcb_t* sleep_queue_hd = NULL;
 
+static tcb_t* dead_queue_hd = NULL;
+
 void thrd_yield(void) {
+  // free dead threads, skip ourself
+  tcb_t* prev_dead = NULL;
+  tcb_t* curr_dead = dead_queue_hd;
+
+  while (curr_dead != NULL) {
+    if (curr_dead == curr_thrd) {
+      prev_dead = curr_dead;
+      curr_dead = curr_dead->next;
+    } else {
+      tcb_t* dead_thrd = dead_queue_hd;
+
+      // remove from queue
+      if (prev_dead == NULL)
+        dead_queue_hd = curr_dead->next;
+      else
+        prev_dead->next = curr_dead->next;
+      curr_dead = curr_dead->next;
+
+      // free the dead threads stack
+      size_t size = align_to_page(THRD_STACK_SIZE + page_size());
+      os_free(dead_thrd->bsp, size);
+
+      // free the thread struct
+      free(dead_thrd);
+    }
+  }
+
   // instantly update the state if the thrd was running
   if (curr_thrd->state ==  THRD_RUNNING) {
     curr_thrd->state = THRD_READY;
@@ -91,6 +122,10 @@ int thrd_create(thrd_t* out_thread, void (*func)(void)) {
 void thrd_exit(void) {
   // make the exiting thread dead
   curr_thrd->state = THRD_DEAD;
+
+  // push it onto the dead queue
+  curr_thrd->next = dead_queue_hd;
+  dead_queue_hd = curr_thrd;
 
   tcb_t* awake_thrd = thrd_dequeue(&curr_thrd->join_queue_hd, &curr_thrd->join_queue_tl);
 
