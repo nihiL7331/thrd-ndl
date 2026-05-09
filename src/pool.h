@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdatomic.h>
 
 typedef struct {
   size_t chunk_size;
@@ -8,6 +9,7 @@ typedef struct {
   size_t total_size;
   void*  start_ptr;
   void*  free_hd;
+  atomic_flag lock;
 } pool_t;
 
 // return codes for allocator

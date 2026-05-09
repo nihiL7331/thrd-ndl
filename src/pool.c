@@ -2,6 +2,7 @@
 #include "platform.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <stdatomic.h>
 
 static inline size_t align_up(size_t size, size_t align);
 
@@ -24,6 +25,8 @@ int pool_new(pool_t* pool, size_t chunk_size, size_t chunk_align, size_t chunk_c
   pool->start_ptr = os_alloc(pool->total_size);
   if (pool->start_ptr == NULL)
     return POOL_OOM;
+
+  pool->lock = (atomic_flag)ATOMIC_FLAG_INIT;
 
   pool_clear(pool);
 
@@ -54,11 +57,17 @@ void* pool_alloc(pool_t* pool, size_t size, size_t align) {
   if (size == 0 || size > pool->chunk_size || align > pool->chunk_align)
     return NULL;
 
-  if (pool->free_hd == NULL)
+  while (atomic_flag_test_and_set_explicit(&pool->lock, memory_order_acquire));
+
+  if (pool->free_hd == NULL) {
+    atomic_flag_clear_explicit(&pool->lock, memory_order_release);
     return NULL;
+  }
 
   void* ret_head = pool->free_hd;
   pool->free_hd = *(void**)pool->free_hd;
+
+  atomic_flag_clear_explicit(&pool->lock, memory_order_release);
 
   return ret_head;
 }
@@ -70,8 +79,12 @@ int pool_free(pool_t* pool, void* ptr) {
   if (pool->start_ptr == NULL)
     return POOL_UNINIT;
 
+  while (atomic_flag_test_and_set_explicit(&pool->lock, memory_order_acquire));
+
   *((void**)ptr) = pool->free_hd;
   pool->free_hd = ptr;
+
+  atomic_flag_clear_explicit(&pool->lock, memory_order_release);
 
   return POOL_SUCCESS;
 }
@@ -82,6 +95,8 @@ int pool_clear(pool_t* pool) {
 
   if (pool->start_ptr == NULL)
     return POOL_UNINIT;
+
+  while (atomic_flag_test_and_set_explicit(&pool->lock, memory_order_acquire));
 
   uint8_t* raw_mem = (uint8_t*)pool->start_ptr;
   size_t num_chunks = pool->total_size / pool->chunk_size;
@@ -95,6 +110,8 @@ int pool_clear(pool_t* pool) {
   void** last_chunk = (void**)(raw_mem + (num_chunks - 1) * pool->chunk_size);
   *last_chunk = NULL;
   pool->free_hd = pool->start_ptr;
+
+  atomic_flag_clear_explicit(&pool->lock, memory_order_release);
   
   return POOL_SUCCESS;
 }
