@@ -104,16 +104,22 @@ void tcb_destroy(tcb_t* tcb) {
 }
 
 tcb_t* tcb_alloc(void) {
-  if (!pool_init) {
-    if (pool_new(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t), POOL_THREAD_CNT) != POOL_SUCCESS)
-      return NULL;
-    pool_init = 1;
-  }
-
   tcb_t* tcb = pool_alloc(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t));
   if (tcb == NULL)
     return NULL;
 
   memset(tcb, 0x0, sizeof(tcb_t));
   return tcb;
+}
+
+int tcb_pool_init(void) {
+  if (!pool_init) {
+    int ret_val = pool_new(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t), POOL_THREAD_CNT);
+    if (ret_val == POOL_SUCCESS)
+      pool_init = 1;
+
+    return ret_val;
+  }
+
+  return POOL_SUCCESS;
 }

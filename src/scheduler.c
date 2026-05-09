@@ -94,6 +94,10 @@ void thrd_init(void) {
   if (curr_thrd != NULL)
     return;
 
+  // initialize the thread pool allocator
+  if (tcb_pool_init() != 0)
+    return;
+
   // make a dummy thread
   tcb_t* init_thrd = tcb_alloc();
   init_thrd->bsp = NULL;
