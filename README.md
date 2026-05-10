@@ -9,6 +9,18 @@
 
 </div>
 
+## Introduction
+
+Sometimes, as a programmer, you might encounter a situation, where you need to run two or more functions side by side.
+Think of a music player that needs to stream audio while updating its UI at the same time, or a web server handling multiple requests at once.
+This is where **threads** come in.
+
+### But what exactly are threads?
+
+A **thread** is a piece of code that can be temporarily paused while running, allowing other threads to execute in its place, and then resumed at any future point in time. 
+Without threads, a program can run **only one** thing at a time, start to finish, in order. 
+With threads, **multiple** tasks can make progress without waiting for each other to complete.
+
 ## Roadmap
 
 - [ ] Start writing README.
