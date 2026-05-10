@@ -21,6 +21,67 @@ A **thread** is a piece of code that can be temporarily paused while running, al
 Without threads, a program can run **only one** thing at a time, start to finish, in order. 
 With threads, **multiple** tasks can make progress without waiting for each other to complete.
 
+## Quick start
+
+While learning about threads, you might want to write your own code. To build this library, use the following:
+```bash
+mkdir build && cd build
+cmake ..
+
+# build the static library (.a)
+cmake --build . --config Release
+```
+After building the library, you can use the outputted file to link it against your own code, using something like:
+```bash
+gcc my_code.c libthrd_ndl.a
+```
+
+### Hello, Thread!
+
+Below is a basic example on how to use the library.
+```c
+#include <thrd_ndl/thrd_ndl.h>
+#include <stdio.h>
+
+void thrd_a_func(void) {
+  for (int i = 0; i < 3; ++i) {
+    printf("Hello, Thread A! (%d)", i);
+    thrd_yield();
+  }
+}
+
+void thrd_b_func(void) {
+  for (int i = 0; i < 3; ++i) {
+    printf("Hello, Thread B! (%d)", i);
+    thrd_yield();
+  }
+}
+
+int main(void) {
+  thrd_init();
+
+  thrd_t thrd_a, thrd_b;
+
+  thrd_create(&thrd_a, thrd_a_func);
+  thrd_create(&thrd_b, thrd_b_func);
+
+  thrd_join(thrd_a);
+  thrd_join(thrd_b);
+}
+```
+The expected output (for cooperative scheduling) is:
+```
+Hello, Thread A! (0)
+Hello, Thread B! (0)
+Hello, Thread A! (1)
+Hello, Thread B! (1)
+Hello, Thread A! (2)
+Hello, Thread B! (2)
+```
+The code is pretty straight-forward. The two functions that are worthy of a description are:
+* `thrd_yield` - voluntarily gives up the thread's turn, letting the next thread run,
+* `thrd_join` - blocks the current thread until the passed thread finishes. Notably main has its own, implicitly created thread!
+
 ## Roadmap
 
 - [ ] Start writing README.
