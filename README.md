@@ -13,7 +13,7 @@
 
 - [ ] Start writing README.
 - [ ] Replace ready queue with a Red-black tree implementation.
-- [ ] Find a good and easy solution for preemption.
+- [x] Find and implement a good and easy solution for preemption. (it isn't easy)
 - [x] Optimize allocation via a Pool allocator.
 - [x] Implement conditional locking.
 - [x] Handle clean up of dead threads.
