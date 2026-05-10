@@ -6,6 +6,9 @@
   #define NOMINMAX
   #include <windows.h>
   #include <memoryapi.h>
+
+  static HANDLE main_thrd;
+  static HANDLE timer_thrd;
 #else
   #include <sys/mman.h>
   #include <unistd.h>
@@ -16,9 +19,10 @@
   #include <stdlib.h>
   #include <string.h>
 
-  static int preempt_cnt = 0;
-  #define PREEMPT_TIMER_INTERVAL 10000
 #endif
+
+#define PREEMPT_TIMER_INTERVAL 10000
+static volatile int preempt_cnt = 0;
 
 uint64_t get_os_time(void) {
 #ifdef _WIN32
@@ -88,7 +92,7 @@ size_t page_size(void) {
 
 void preempt_disable(void) {
 #ifdef _WIN32
-  #error "TODO" 
+  preempt_cnt++;
 #else
   if (preempt_cnt++ == 0) {
     sigset_t sigset;
@@ -101,7 +105,7 @@ void preempt_disable(void) {
 
 void preempt_enable(void) {
 #ifdef _WIN32
-  #error "TODO"
+  preempt_cnt--;
 #else
   if (--preempt_cnt == 0) {
     sigset_t sigset;
@@ -112,7 +116,44 @@ void preempt_enable(void) {
 #endif
 }
 
-#ifndef _WIN32
+#ifdef _WIN32
+LONG WINAPI signal_handler(PEXCEPTION_POINTERS except_info) {
+  if (except_info->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP) {
+    except_info->ContextRecord->EFlags &= ~0x100ULL;
+
+    if (preempt_cnt == 0)
+      thrd_yield();
+
+    return EXCEPTION_CONTINUE_EXECUTION;
+  }
+
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+DWORD WINAPI timer_loop(LPVOID arg) {
+  (void)arg;
+  while (1) {
+    Sleep(PREEMPT_TIMER_INTERVAL / 1000);
+
+    if (preempt_cnt == 0) {
+      SuspendThread(main_thrd);
+
+      if (preempt_cnt == 0) {
+        CONTEXT ctx;
+        ctx.ContextFlags = CONTEXT_CONTROL;
+        if (GetThreadContext(main_thrd, &ctx)) {
+          ctx.EFlags |= 0x100ULL;
+          SetThreadContext(main_thrd, &ctx);
+        }
+      }
+
+      ResumeThread(main_thrd);
+    }
+  }
+
+  return 0;
+}
+#else
 static void signal_handler(int num) {
   (void)num;
   thrd_yield();
@@ -121,7 +162,11 @@ static void signal_handler(int num) {
 
 void timer_init(void) {
 #ifdef _WIN32
-  #error "TODO"
+  DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
+                  GetCurrentProcess(), &main_thrd, 0,
+                  FALSE, DUPLICATE_SAME_ACCESS);
+  AddVectoredExceptionHandler(1, signal_handler);
+  timer_thrd = CreateThread(NULL, 0, timer_loop, NULL, 0, NULL);
 #else
   struct sigaction action;
   memset(&action, 0x0, sizeof(action));
