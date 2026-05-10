@@ -12,6 +12,9 @@
   #include <time.h>
   #include <signal.h>
   #include <sys/time.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
 
   static int preempt_cnt = 0;
   #define PREEMPT_TIMER_INTERVAL 10000
@@ -90,7 +93,7 @@ void preempt_disable(void) {
   if (preempt_cnt++ == 0) {
     sigset_t sigset;
     sigemptyset(&sigset);
-    sigaddset(&sigset, SIGVTALRM);
+    sigaddset(&sigset, SIGALRM);
     sigprocmask(SIG_BLOCK, &sigset, NULL);
   }
 #endif
@@ -103,7 +106,7 @@ void preempt_enable(void) {
   if (--preempt_cnt == 0) {
     sigset_t sigset;
     sigemptyset(&sigset);
-    sigaddset(&sigset, SIGVTALRM);
+    sigaddset(&sigset, SIGALRM);
     sigprocmask(SIG_UNBLOCK, &sigset, NULL);
   }
 #endif
@@ -120,22 +123,24 @@ void timer_init(void) {
 #ifdef _WIN32
   #error "TODO"
 #else
-  struct sigaction action = {
-    .sa_handler = signal_handler,
-    .sa_flags = SA_NODEFER,
-  };
-  sigaction(SIGVTALRM, &action, NULL);
+  struct sigaction action;
+  memset(&action, 0x0, sizeof(action));
+  action.sa_handler = signal_handler;
+  action.sa_flags = SA_NODEFER;
 
-  struct itimerval timer = {
-    .it_value = {
-      .tv_sec = 0,
-      .tv_usec = PREEMPT_TIMER_INTERVAL,
-    },
-    .it_interval = {
-      .tv_sec = 0,
-      .tv_usec = PREEMPT_TIMER_INTERVAL,
-    },
-  };
-  setitimer(ITIMER_VIRTUAL, &timer, NULL);
+  if (sigaction(SIGALRM, &action, NULL) == -1) {
+    perror("sigaction failed");
+    exit(1);
+  }
+
+  struct itimerval timer;
+  memset(&timer, 0x0, sizeof(timer));
+  timer.it_value.tv_usec = PREEMPT_TIMER_INTERVAL;
+  timer.it_interval.tv_usec = PREEMPT_TIMER_INTERVAL;
+
+  if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
+    perror("setitimer failed");
+    exit(1);
+  }
 #endif
 }

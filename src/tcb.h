@@ -19,6 +19,8 @@ typedef struct tcb {
 
   struct tcb* next;
 
+  void (*user_proc)(void);
+
   // thread blocking
   struct tcb* join_queue_hd;
   struct tcb* join_queue_tl;

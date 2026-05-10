@@ -2,6 +2,7 @@
 #include "platform.h"
 #include "internal.h"
 #include "pool.h"
+#include "scheduler.h"
 #include <thrd_ndl/thrd_ndl.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -20,6 +21,13 @@
 
 static pool_t tcb_pool = {0};
 static int pool_init = 0;
+
+// a wrapper for thread procedure call
+static void tcb_wrap(void) {
+  preempt_enable();
+  get_curr_thrd()->user_proc();
+  thrd_exit();
+}
 
 tcb_t* tcb_init(void (*entry_point)(void)) {
   // allocate 'tcb_t' on the heap
@@ -51,6 +59,8 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
 
   tcb->wakeup_time = 0;
 
+  tcb->user_proc = entry_point;
+
   // set up the stack frame.
   // it is platform dependent:
   // on windows x86: 8 registers,
@@ -67,7 +77,7 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
 #ifdef __aarch64__
   *(--stack) = 0x0; // dummy for 16B align
 #else
-  *(--stack) = (uint64_t)entry_point;
+  *(--stack) = (uint64_t)tcb_wrap;
 #endif
 
   // clear the callee-saved registers
@@ -80,7 +90,7 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
 #ifdef __aarch64__
   // since x19 is callee-saved,
   // store the function pointer in there safely.
-  stack[10] = (uint64_t)entry_point;
+  stack[10] = (uint64_t)tcb_wrap;
 
   // this will be called on scope exit
   // (just like entry_point on x86)

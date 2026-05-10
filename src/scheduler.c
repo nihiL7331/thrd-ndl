@@ -183,10 +183,10 @@ void thrd_join(thrd_t thread) {
   // append it to 'cast_thrd's join queue
   thrd_enqueue(curr_thrd, &cast_thrd->join_queue_hd, &cast_thrd->join_queue_tl);
 
+  preempt_enable();
+
   // yield
   thrd_yield();
-
-  preempt_enable();
 }
 
 void thrd_sleep(uint64_t time_ms) {
@@ -222,9 +222,9 @@ void thrd_sleep(uint64_t time_ms) {
 
   curr_thrd->next = curr;
 
-  thrd_yield();
-
   preempt_enable();
+
+  thrd_yield();
 }
 
 tcb_t* get_curr_thrd(void) {

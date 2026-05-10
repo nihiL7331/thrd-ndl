@@ -25,10 +25,10 @@ void mutex_lock(mutex_t* mutex) {
   // push 'curr_thrd' to mutex wait queue
   thrd_enqueue(curr_thrd, (tcb_t**)&mutex->wait_queue_hd, (tcb_t**)&mutex->wait_queue_tl);
 
+  preempt_enable();
+
   // push the thread off of cpu
   thrd_yield();
-
-  preempt_enable();
 }
 
 void mutex_unlock(mutex_t* mutex) {
