@@ -82,6 +82,36 @@ The code is pretty straight-forward. The two functions that are worthy of a desc
 * `thrd_yield` - voluntarily gives up the thread's turn, letting the next thread run,
 * `thrd_join` - blocks the current thread until the passed thread finishes. Notably main has its own, implicitly created thread!
 
+## Public interface
+
+Contrary to other non-educational libraries, this section is here for a different reason.
+It's an overview of functions implemented later in the [Implementation](#implementation) section.
+While reading the said implementation section, you might return quite often to this section.
+
+### Threads
+
+* `thrd_init` - must be called once before anything else. Sets up the scheduler and creates the implicit main thread,
+* `thrd_create(thrd_t* out_thread, void (*func)(void))` - creates a new thread. Returns `THRD_SUCCESS` or `THRD_OOM` if the pool is exhausted,
+* `thrd_yield` - voluntarily hands control to the next ready thread,
+* `thrd_sleep(uint64_t time_ms)` - suspends the current thread for at least `time_ms` milliseconds,
+* `thrd_join(thrd_t thread)` - blocks until `thread` finishes,
+* `thrd_exit` - explicitly exits the current thread. It's called implicitly when the thread function returns.
+
+### Mutexes
+
+* `mutex_lock(mutex_t* mutex)` - acquires the `mutex`, blocking if already held,
+* `mutex_unlock(mutex_t* mutex)` - releases the `mutex` and wakes one waiting thread.
+
+### Condition variables
+
+* `cond_wait(cond_t* cond, mutex_t* mutex)` - releases `mutex` and blocks, reacquires on wake,
+* `cond_signal(cond_t* cond)` - wakes one thread waiting on the `cond` condition,
+* `cond_bcast(cond_t* cond)` - wakes all threads waiting on the `cond` condition.
+
+<div align="center">
+  <p><em>mutex_t and cond_t need to be zero-initialized before use.</em></p>
+</div>
+
 ## Roadmap
 
 - [ ] Start writing README.
