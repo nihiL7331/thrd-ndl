@@ -114,8 +114,9 @@ While reading the said implementation section, you might return quite often to t
 
 ## Roadmap
 
-- [ ] Start writing README.
 - [ ] Replace ready queue with a Red-black tree implementation.
+- [ ] Cover the implementation in README.
+- [x] Make a introductory README section.
 - [x] Find and implement a good and easy solution for preemption. (it isn't easy)
 - [x] Optimize allocation via a Pool allocator.
 - [x] Implement conditional locking.
