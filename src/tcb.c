@@ -10,6 +10,8 @@
 
 #ifdef __aarch64__
   #define CALLEE_SAVED_REG_CNT 12
+  #define X19_REG_POS 10
+  #define X30_REG_POS 1
 
   // required for implicit 'thrd_exit'
   extern void thrd_tramp(void);
@@ -90,7 +92,7 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
 #ifdef __aarch64__
   // since x19 is callee-saved,
   // store the function pointer in there safely.
-  stack[10] = (uint64_t)tcb_wrap;
+  stack[X19_REG_POS] = (uint64_t)tcb_wrap;
 
   // this will be called on scope exit
   // (just like entry_point on x86)
@@ -98,7 +100,7 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   // because on ret arm doesn't pop the stack
   // (it uses x30 register to get the pointer)
   // we copy this x86 behavior via 'thrd_tramp'
-  stack[1] = (uint64_t)thrd_tramp;
+  stack[X30_REG_POS] = (uint64_t)thrd_tramp;
 #endif
 
   tcb->rsp = (void*)stack;
