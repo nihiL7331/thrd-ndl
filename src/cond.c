@@ -23,10 +23,10 @@ void cond_wait(cond_t* cond, mutex_t* mutex) {
   // the lock and change the shared data
   mutex_unlock(mutex);
 
+  preempt_enable();
+
   // sleep until signaled
   thrd_yield();
-
-  preempt_enable();
 
   // lock back the mutex
   mutex_lock(mutex);
