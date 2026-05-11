@@ -171,7 +171,6 @@ void timer_init(void) {
   struct sigaction action;
   memset(&action, 0x0, sizeof(action));
   action.sa_handler = signal_handler;
-  action.sa_flags = SA_NODEFER;
 
   if (sigaction(SIGALRM, &action, NULL) == -1) {
     perror("sigaction failed");
