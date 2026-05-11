@@ -77,7 +77,7 @@ restart:
       // then go back to the top of the function
       goto restart;
     } else if (curr_thrd->state == THRD_DEAD) // all threads are dead, close the program
-      exit(0);
+      exit(0); // TODO: replace it somehow, exit isn't async signal safe
     else // all threads are sleeping / UB
       exit(1);
   }
