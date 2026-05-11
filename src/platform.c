@@ -21,7 +21,7 @@
 
 #endif
 
-#define PREEMPT_TIMER_INTERVAL 10000
+#define PREEMPT_TIMER_INTERVAL 13370
 static volatile int preempt_cnt = 0;
 
 uint64_t get_os_time(void) {
