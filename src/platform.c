@@ -82,9 +82,9 @@ size_t page_size(void) {
 #ifdef _WIN32
     SYSTEM_INFO sysInfo;
     GetSystemInfo(&sysInfo);
-    return (size_t)sysInfo.dwPageSize;
+    cached_page_size = (size_t)sysInfo.dwPageSize;
 #else
-    return (size_t)sysconf(_SC_PAGESIZE);
+    cached_page_size = (size_t)sysconf(_SC_PAGESIZE);
 #endif
   }
   return cached_page_size;
