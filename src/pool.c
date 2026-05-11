@@ -62,6 +62,7 @@ void* pool_alloc(pool_t* pool, size_t size, size_t align) {
 
   if (pool->free_hd == NULL) {
     atomic_flag_clear_explicit(&pool->lock, memory_order_release);
+    preempt_enable();
     return NULL;
   }
 
