@@ -97,7 +97,7 @@ void preempt_disable(void) {
   if (preempt_cnt++ == 0) {
     sigset_t sigset;
     sigemptyset(&sigset);
-    sigaddset(&sigset, SIGALRM);
+    sigaddset(&sigset, SIGVTALRM);
     sigprocmask(SIG_BLOCK, &sigset, NULL);
   }
 #endif
@@ -110,7 +110,7 @@ void preempt_enable(void) {
   if (--preempt_cnt == 0) {
     sigset_t sigset;
     sigemptyset(&sigset);
-    sigaddset(&sigset, SIGALRM);
+    sigaddset(&sigset, SIGVTALRM);
     sigprocmask(SIG_UNBLOCK, &sigset, NULL);
   }
 #endif
@@ -172,7 +172,7 @@ void timer_init(void) {
   memset(&action, 0x0, sizeof(action));
   action.sa_handler = signal_handler;
 
-  if (sigaction(SIGALRM, &action, NULL) == -1) {
+  if (sigaction(SIGVTALRM, &action, NULL) == -1) {
     perror("sigaction failed");
     exit(1);
   }
@@ -182,7 +182,7 @@ void timer_init(void) {
   timer.it_value.tv_usec = PREEMPT_TIMER_INTERVAL;
   timer.it_interval.tv_usec = PREEMPT_TIMER_INTERVAL;
 
-  if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
+  if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1) {
     perror("setitimer failed");
     exit(1);
   }
