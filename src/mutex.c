@@ -54,6 +54,7 @@ void mutex_unlock(mutex_t* mutex) {
 int mutex_trylock(mutex_t* mutex) {
   preempt_disable();
 
+  // if mutex is unlocked then lock it,
   if (!mutex->is_locked) {
     mutex->is_locked = 1;
     preempt_enable();
@@ -62,5 +63,6 @@ int mutex_trylock(mutex_t* mutex) {
 
   preempt_enable();
 
+  // otherwise just return that it's busy and do nothing
   return THRD_BUSY;
 }
