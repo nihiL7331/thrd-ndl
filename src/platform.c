@@ -128,42 +128,42 @@ void preempt_enable(void) {
 }
 
 #ifdef _WIN32
-LONG WINAPI signal_handler(PEXCEPTION_POINTERS except_info) {
-  if (except_info->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP) {
-    except_info->ContextRecord->EFlags &= ~0x100ULL;
+  LONG WINAPI signal_handler(PEXCEPTION_POINTERS except_info) {
+    if (except_info->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP) {
+      except_info->ContextRecord->EFlags &= ~0x100ULL;
 
-    if (preempt_cnt == 0)
-      thrd_yield();
+      if (preempt_cnt == 0)
+        thrd_yield();
 
-    return EXCEPTION_CONTINUE_EXECUTION;
+      return EXCEPTION_CONTINUE_EXECUTION;
+    }
+
+    return EXCEPTION_CONTINUE_SEARCH;
   }
 
-  return EXCEPTION_CONTINUE_SEARCH;
-}
-
-DWORD WINAPI timer_loop(LPVOID arg) {
-  (void)arg;
-  while (1) {
-    Sleep(PREEMPT_TIMER_INTERVAL / 1000);
-
-    if (preempt_cnt == 0) {
-      SuspendThread(main_thrd);
+  DWORD WINAPI timer_loop(LPVOID arg) {
+    (void)arg;
+    while (1) {
+      Sleep(PREEMPT_TIMER_INTERVAL / 1000);
 
       if (preempt_cnt == 0) {
-        CONTEXT ctx;
-        ctx.ContextFlags = CONTEXT_CONTROL;
-        if (GetThreadContext(main_thrd, &ctx)) {
-          ctx.EFlags |= 0x100ULL;
-          SetThreadContext(main_thrd, &ctx);
+        SuspendThread(main_thrd);
+
+        if (preempt_cnt == 0) {
+          CONTEXT ctx;
+          ctx.ContextFlags = CONTEXT_CONTROL;
+          if (GetThreadContext(main_thrd, &ctx)) {
+            ctx.EFlags |= 0x100ULL;
+            SetThreadContext(main_thrd, &ctx);
+          }
         }
+
+        ResumeThread(main_thrd);
       }
-
-      ResumeThread(main_thrd);
     }
-  }
 
-  return 0;
-}
+    return 0;
+  }
 #else
 static void signal_handler(int num) {
   (void)num;
