@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include "internal.h"
 #include "platform.h"
 #include "tcb.h"
@@ -233,7 +234,7 @@ static inline void dump_queue(const char* label, tcb_t* head) {
   tcb_t* curr = head;
   uint64_t idx = 0;
   while (curr != NULL) {
-    fprintf(stderr, "== THRD %lld ==\n", idx++);
+    fprintf(stderr, "== THRD %"PRIu64" ==\n", idx++);
     tcb_dump_one(curr);
     curr = curr->next;
   }
