@@ -62,8 +62,10 @@ int main(void) {
 
   thrd_t thrd_a, thrd_b;
 
-  thrd_create(&thrd_a, thrd_a_func);
-  thrd_create(&thrd_b, thrd_b_func);
+  if (thrd_create(&thrd_a, thrd_a_func) != THRD_SUCCESS)
+    return 1;
+  if (thrd_create(&thrd_b, thrd_b_func) != THRD_SUCCESS)
+    return 1;
 
   thrd_join(thrd_a);
   thrd_join(thrd_b);
@@ -117,9 +119,9 @@ While reading the said implementation section, you might return quite often to t
 ## Roadmap
 
 - [ ] Replace the sleep queue with a binary min-heap.
-- [ ] Implement `mutex_trylock`, `cond_timedwait`
 - [ ] Add a debugging `thrd_dump` method.
 - [ ] Cover the implementation in README.
+- [x] Implement `mutex_trylock`.
 - [x] Make a introductory README section.
 - [x] Find and implement a good and easy solution for preemption. (it isn't easy)
 - [x] Optimize allocation via a Pool allocator.
