@@ -21,7 +21,6 @@ static tcb_t* sleep_queue_hd = NULL;
 static tcb_t* dead_queue_hd = NULL;
 
 void thrd_yield(void) {
-restart:
   preempt_disable();
 
   // free dead threads, skip ourself
@@ -61,23 +60,21 @@ restart:
   // is waking up, then pop it off the sleep queue
   uint64_t curr_time_ms = get_os_time();
   while (sleep_queue_hd != NULL && curr_time_ms >= sleep_queue_hd->wakeup_time) {
-    tcb_t* awake_thrd = sleep_queue_hd;
-    sleep_queue_hd = sleep_queue_hd->next;
-    awake_thrd->state = THRD_READY;
-    thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
+    wakeup_thrd();
   }
 
-  // there's no one else waiting,
-  // keep running the thread
-  if (rdy_queue_hd == NULL) {
+  while (rdy_queue_hd == NULL) {
+    // there's no one else waiting,
+    // keep running the thread
     if (sleep_queue_hd != NULL) {
-      preempt_enable();
-
       // wait here until thread wakes up,
-      while (get_os_time() < sleep_queue_hd->wakeup_time);
+      os_sleep_ms(sleep_queue_hd->wakeup_time - curr_time_ms);
+      
+      curr_time_ms = get_os_time();
+      while (sleep_queue_hd != NULL && curr_time_ms >= sleep_queue_hd->wakeup_time) {
+        wakeup_thrd();
+      }
 
-      // then go back to the top of the function
-      goto restart;
     } else if (curr_thrd->state == THRD_DEAD) // all threads are dead, close the program
       exit(0); // TODO: replace it somehow, exit isn't async signal safe
     else // all threads are sleeping / UB
