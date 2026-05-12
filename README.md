@@ -121,8 +121,8 @@ While reading the said implementation section, you might return quite often to t
 ## Roadmap
 
 - [ ] Replace the sleep queue with a binary min-heap.
-- [ ] Add a debugging `thrd_dump` method.
 - [ ] Cover the implementation in README.
+- [x] Add a debugging `thrd_dump` method.
 - [x] Implement `mutex_trylock`.
 - [x] Make a introductory README section.
 - [x] Find and implement a good and easy solution for preemption. (it isn't easy)
