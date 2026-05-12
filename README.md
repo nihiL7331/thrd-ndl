@@ -45,14 +45,14 @@ Below is a basic example on how to use the library.
 
 void thrd_a_func(void) {
   for (int i = 0; i < 3; ++i) {
-    printf("Hello, Thread A! (%d)", i);
+    printf("Hello, Thread A! (%d)\n", i);
     thrd_yield();
   }
 }
 
 void thrd_b_func(void) {
   for (int i = 0; i < 3; ++i) {
-    printf("Hello, Thread B! (%d)", i);
+    printf("Hello, Thread B! (%d)\n", i);
     thrd_yield();
   }
 }
