@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 uint64_t get_os_time(void);
+void os_sleep_ms(uint64_t time_ms);
 
 void* os_alloc(size_t size); // OS call for memory page
 void os_free(void* ptr, size_t size); // OS call for free

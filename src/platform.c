@@ -42,6 +42,17 @@ uint64_t get_os_time(void) {
 #endif
 }
 
+void os_sleep_ms(uint64_t time_ms) {
+#ifdef _WIN32
+  Sleep((DWORD)time_ms);
+#else
+  struct timespec ts;
+  ts.tv_sec = time_ms / 1000ULL;
+  ts.tv_nsec = (time_ms - ts.tv_sec * 1000ULL) * 1000000ULL;
+  nanosleep(&ts, NULL);
+#endif
+}
+
 // OS call for memory page
 void* os_alloc(size_t size) {
 #ifdef _WIN32
