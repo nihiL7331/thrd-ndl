@@ -3,6 +3,7 @@
 #include <thrd_ndl/thrd_ndl.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <unistd.h>
 #include "internal.h"
 #include "platform.h"
 #include "tcb.h"
@@ -76,9 +77,9 @@ void thrd_yield(void) {
       }
 
     } else if (curr_thrd->state == THRD_DEAD) // all threads are dead, close the program
-      exit(0); // TODO: replace it somehow, exit isn't async signal safe
+      _exit(0);
     else // all threads are sleeping / UB
-      exit(1);
+      _exit(1);
   }
 
   // pop the head
