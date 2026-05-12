@@ -113,7 +113,7 @@ While reading the said implementation section, you might return quite often to t
 * `cond_bcast(cond_t* cond)` - wakes all threads waiting on the `cond` condition.
 
 <div align="center">
-  <p><em>mutex_t and cond_t need to be zero-initialized before use.</em></p>
+  <p><em>mutex_t and cond_t need to be zero-initialized before use.<br>Procedures don't return anything unless specified.</em></p>
 </div>
 
 ## Implementation
