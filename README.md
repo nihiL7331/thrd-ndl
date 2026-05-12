@@ -93,15 +93,17 @@ While reading the said implementation section, you might return quite often to t
 ### Threads
 
 * `thrd_init` - must be called once before anything else. Sets up the scheduler and creates the implicit main thread,
-* `thrd_create(thrd_t* out_thread, void (*func)(void))` - creates a new thread. Returns `THRD_SUCCESS` or `THRD_OOM` if the pool is exhausted,
+* `int thrd_create(thrd_t* out_thread, void (*func)(void))` - creates a new thread. Returns `THRD_SUCCESS` or `THRD_OOM` if the pool is exhausted,
 * `thrd_yield` - voluntarily hands control to the next ready thread,
 * `thrd_sleep(uint64_t time_ms)` - suspends the current thread for at least `time_ms` milliseconds,
 * `thrd_join(thrd_t thread)` - blocks until `thread` finishes,
-* `thrd_exit` - explicitly exits the current thread. It's called implicitly when the thread function returns.
+* `thrd_exit` - explicitly exits the current thread. It's called implicitly when the thread function returns,
+* `thrd_dump` - writes a snapshot of the scheduler state to `stderr`, intended as a debugging procedure, safe to cal from any thread.
 
 ### Mutexes
 
-* `mutex_lock(mutex_t* mutex)` - acquires the `mutex`, blocking if already held,
+* `mutex_lock(mutex_t* mutex)` - acquires the `mutex`, blocking the caller if already held,
+* `int mutex_trylock(mutex_t* mutex)` - attempts to acquire the `mutex` without blocking, useful when the caller has work it can do instead of waiting,
 * `mutex_unlock(mutex_t* mutex)` - releases the `mutex` and wakes one waiting thread.
 
 ### Condition variables
