@@ -9,8 +9,7 @@ void mutex_lock(mutex_t* mutex) {
 
   // if mutex is unlocked,
   // then lock it and return
-  if (!mutex->is_locked) {
-    mutex->is_locked = 1;
+  if (mutex_trylock(mutex) == THRD_SUCCESS) {
     preempt_enable();
     return;
   }
@@ -50,4 +49,18 @@ void mutex_unlock(mutex_t* mutex) {
   resume_thrd(pop_thrd);
 
   preempt_enable();
+}
+
+int mutex_trylock(mutex_t* mutex) {
+  preempt_disable();
+
+  if (!mutex->is_locked) {
+    mutex->is_locked = 1;
+    preempt_enable();
+    return THRD_SUCCESS;
+  }
+
+  preempt_enable();
+
+  return THRD_BUSY;
 }
