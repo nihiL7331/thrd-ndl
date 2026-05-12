@@ -112,9 +112,13 @@ While reading the said implementation section, you might return quite often to t
   <p><em>mutex_t and cond_t need to be zero-initialized before use.</em></p>
 </div>
 
+## Implementation
+
 ## Roadmap
 
-- [ ] Replace ready queue with a Red-black tree implementation.
+- [ ] Replace the sleep queue with a binary min-heap.
+- [ ] Implement `mutex_trylock`, `cond_timedwait`
+- [ ] Add a debugging `thrd_dump` method.
 - [ ] Cover the implementation in README.
 - [x] Make a introductory README section.
 - [x] Find and implement a good and easy solution for preemption. (it isn't easy)
