@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include <stddef.h>
+#include <stdio.h>
 #include <thrd_ndl/thrd_ndl.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -225,6 +226,35 @@ void thrd_sleep(uint64_t time_ms) {
   preempt_enable();
 
   thrd_yield();
+}
+
+static inline void dump_queue(const char* label, tcb_t* head) {
+  fprintf(stderr, "====  %s  ====\n", label);
+  tcb_t* curr = head;
+  uint64_t idx = 0;
+  while (curr != NULL) {
+    fprintf(stderr, "== THRD %lld ==\n", idx++);
+    tcb_dump_one(curr);
+    curr = curr->next;
+  }
+}
+
+void thrd_dump(void) {
+  if (curr_thrd == NULL) {
+    fprintf(stderr, "uninitialized\n");
+    return;
+  }
+
+  preempt_disable();
+
+  fprintf(stderr, "==== thrd_dump ====\n");
+  fprintf(stderr, "====  RUNNING  ====\n");
+  tcb_dump_one(curr_thrd);
+  dump_queue("READY", rdy_queue_hd);
+  dump_queue("SLEEP", sleep_queue_hd);
+  dump_queue("DEAD", dead_queue_hd);
+
+  preempt_enable();
 }
 
 tcb_t* get_curr_thrd(void) {

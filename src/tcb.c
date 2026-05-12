@@ -3,10 +3,12 @@
 #include "internal.h"
 #include "pool.h"
 #include "scheduler.h"
+#include <stdio.h>
 #include <thrd_ndl/thrd_ndl.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <inttypes.h>
 
 #ifdef __aarch64__
   #define CALLEE_SAVED_REG_CNT 12
@@ -134,4 +136,42 @@ int tcb_pool_init(void) {
   }
 
   return POOL_SUCCESS;
+}
+
+const char* state_to_str(thrd_state_t state) {
+  switch (state) {
+  case THRD_READY:
+    return "ready";
+  case THRD_RUNNING:
+    return "running";
+  case THRD_DEAD:
+    return "dead";
+  case THRD_BLOCKED:
+    return "blocked";
+  case THRD_SLEEPING:
+    return "sleeping";
+  default:
+    return "unknown";
+  }
+}
+
+void tcb_dump_one(tcb_t* tcb) {
+  if (tcb == NULL)
+    return;
+
+  const char* format;
+  if (tcb->state == THRD_RUNNING)
+    format = " addr: %p\n state: %s\n bsp: %p\n rsp: %p\n stack used (stale): %"PRIu64"\n";
+  else
+    format = " addr: %p\n state: %s\n bsp: %p\n rsp: %p\n stack used: %"PRIu64"\n";
+
+  fprintf(stderr, format,
+    (void *)tcb,
+    state_to_str(tcb->state),
+    (void *)tcb->bsp,
+    (void *)tcb->rsp,
+    (uint64_t)((uint8_t*)tcb->bsp + align_to_page(THRD_STACK_SIZE + page_size()) - (uint8_t*)tcb->rsp)
+  );
+  if (tcb->state == THRD_SLEEPING)
+    fprintf(stderr, "wakeup time: %"PRIu64"\n", tcb->wakeup_time);
 }

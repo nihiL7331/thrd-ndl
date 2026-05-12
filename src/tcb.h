@@ -32,3 +32,4 @@ tcb_t* tcb_init(void (*entry_point)(void));
 void tcb_destroy(tcb_t* tcb);
 tcb_t* tcb_alloc(void);
 int tcb_pool_init(void);
+void tcb_dump_one(tcb_t* tcb);
