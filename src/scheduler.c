@@ -10,6 +10,8 @@
 
 extern void thrd_ndl_switch(tcb_t* old_tcb, tcb_t* new_tcb);
 
+static inline void wakeup_thrd(void);
+
 static tcb_t* curr_thrd = NULL;
 static tcb_t* rdy_queue_hd = NULL;
 static tcb_t* rdy_queue_tl = NULL;
@@ -241,4 +243,11 @@ void resume_thrd(tcb_t* thrd) {
   thrd_enqueue(thrd, &rdy_queue_hd, &rdy_queue_tl);
 
   preempt_enable();
+}
+
+static inline void wakeup_thrd(void) {
+  tcb_t* awake_thrd = sleep_queue_hd;
+  sleep_queue_hd = sleep_queue_hd->next;
+  awake_thrd->state = THRD_READY;
+  thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
 }
