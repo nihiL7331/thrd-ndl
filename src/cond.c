@@ -26,6 +26,9 @@ void cond_wait(cond_t* cond, mutex_t* mutex) {
   preempt_enable();
 
   // sleep until signaled
+
+  // safe under preemption,
+  // thread is blocked preventing a re-enqueue in yield
   thrd_yield();
 
   // lock back the mutex
