@@ -3,7 +3,7 @@
 #include <assert.h>
 
 volatile int shared_cntr = 0;
-mutex_t cntr_mutex = {0};
+mutex_t cntr_mutex;
 
 void inc_task(void) {
   for (int i = 0; i < 10000; ++i) {
@@ -24,6 +24,8 @@ void inc_task(void) {
 
 int main(void) {
   thrd_init();
+
+  mutex_init(&cntr_mutex);
 
   thrd_t t1, t2;
 

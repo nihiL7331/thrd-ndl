@@ -7,9 +7,9 @@
 volatile int buff_has_data = 0;
 volatile int total_consumed = 0;
 
-mutex_t shared_mut = {0};
-cond_t not_empty = {0};
-cond_t not_full = {0};
+mutex_t shared_mut;
+cond_t not_empty;
+cond_t not_full;
 
 void prod_task(void) {
   for (int i = 0; i < TARGET_CNT; ++i) {
@@ -44,6 +44,10 @@ void cons_task(void) {
 
 int main(void) {
   thrd_init();
+
+  mutex_init(&shared_mut);
+  cond_init(&not_empty);
+  cond_init(&not_full);
 
   thrd_t prod_thrd, cons_thrd;
 
