@@ -64,5 +64,5 @@ int mutex_trylock(mutex_t* mutex) {
   preempt_enable();
 
   // otherwise just return that it's busy and do nothing
-  return THRD_BUSY;
+  return THRD_EBUSY;
 }
