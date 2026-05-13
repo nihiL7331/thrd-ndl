@@ -10,16 +10,17 @@
 #include "platform.h"
 #include "tcb.h"
 #include "utils.h"
+#include "heap.h"
 
 extern void thrd_ndl_switch(tcb_t* old_tcb, tcb_t* new_tcb);
-
-static inline void wakeup_thrd(void);
 
 static tcb_t* curr_thrd = NULL;
 static tcb_t* rdy_queue_hd = NULL;
 static tcb_t* rdy_queue_tl = NULL;
 
-static tcb_t* sleep_queue_hd = NULL;
+static void*  sleep_heap_storage[POOL_THRD_CNT];
+static heap_t sleep_queue;
+static int wakeup_cmp(const void* a, const void* b);
 
 static tcb_t* dead_queue_hd = NULL;
 
@@ -54,7 +55,7 @@ void thrd_yield(void) {
   }
 
   // instantly update the state if the thrd was running
-  if (curr_thrd->state ==  THRD_RUNNING) {
+  if (curr_thrd->state == THRD_RUNNING) {
     curr_thrd->state = THRD_READY;
     thrd_enqueue(curr_thrd, &rdy_queue_hd, &rdy_queue_tl);
   }
@@ -62,25 +63,34 @@ void thrd_yield(void) {
   // if the thread that has the closest 'wakeup_time'
   // is waking up, then pop it off the sleep queue
   uint64_t curr_time_ms = get_os_time();
-  while (sleep_queue_hd != NULL && curr_time_ms >= sleep_queue_hd->wakeup_time) {
-    wakeup_thrd();
+  tcb_t* sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
+  while (sleep_hd != NULL && curr_time_ms >= sleep_hd->wakeup_time) {
+    tcb_t* awake_thrd = heap_pop(&sleep_queue);
+    awake_thrd->state = THRD_READY;
+    thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
+    sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
   }
 
   while (rdy_queue_hd == NULL) {
     // there's no one else waiting,
     // keep running the thread
-    if (sleep_queue_hd != NULL) {
+    tcb_t* sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
+    if (sleep_hd != NULL) {
       // wait here until thread wakes up,
-      os_sleep_ms(sleep_queue_hd->wakeup_time - curr_time_ms);
+      curr_time_ms = get_os_time();
+      os_sleep_ms(sleep_hd->wakeup_time - curr_time_ms);
       
       curr_time_ms = get_os_time();
-      while (sleep_queue_hd != NULL && curr_time_ms >= sleep_queue_hd->wakeup_time) {
-        wakeup_thrd();
+      while (sleep_hd != NULL && curr_time_ms >= sleep_hd->wakeup_time) {
+        tcb_t* awake_thrd = heap_pop(&sleep_queue);
+        awake_thrd->state = THRD_READY;
+        thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
+        sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
       }
 
     } else if (curr_thrd->state == THRD_DEAD) // all threads are dead, close the program
       _exit(0);
-    else // all threads are sleeping / UB
+    else // all threads blocked with no holders
       _exit(1);
   }
 
@@ -105,6 +115,10 @@ void thrd_init(void) {
 
   // initialize the thread pool allocator
   if (tcb_pool_init() != 0)
+    return;
+
+  // initialize sleep binary heap
+  if (heap_new(&sleep_queue, sleep_heap_storage, POOL_THRD_CNT, wakeup_cmp) != THRD_SUCCESS)
     return;
 
   // make a dummy thread
@@ -205,24 +219,9 @@ void thrd_sleep(uint64_t time_ms) {
   curr_thrd->wakeup_time = curr_time_ms + time_ms;
   curr_thrd->state = THRD_SLEEPING;
 
-  // insert the sleeping thread to sleep queue,
-  // assuming that before the insertion the list is sorted
-  // by wakeup time, insert it in a way that this promise isnt broken
-  tcb_t* curr = sleep_queue_hd;
-  tcb_t* prev = NULL;
-  while (curr != NULL && curr->wakeup_time < curr_thrd->wakeup_time) {
-    prev = curr;
-    curr = curr->next;
-  }
-
-  // found position of the newly sleeping thread,
-  // insert it
-  if (prev != NULL)
-    prev->next = curr_thrd;
-  else
-    sleep_queue_hd = curr_thrd;
-
-  curr_thrd->next = curr;
+  // no need to check the return value,
+  // it cant fail because heap capacity == pool alloc capacity
+  heap_push(&sleep_queue, curr_thrd);
 
   preempt_enable();
 
@@ -252,7 +251,6 @@ void thrd_dump(void) {
   fprintf(stderr, "====  RUNNING  ====\n");
   tcb_dump_one(curr_thrd);
   dump_queue("READY", rdy_queue_hd);
-  dump_queue("SLEEP", sleep_queue_hd);
   dump_queue("DEAD", dead_queue_hd);
 
   preempt_enable();
@@ -274,9 +272,9 @@ void resume_thrd(tcb_t* thrd) {
   preempt_enable();
 }
 
-static inline void wakeup_thrd(void) {
-  tcb_t* awake_thrd = sleep_queue_hd;
-  sleep_queue_hd = sleep_queue_hd->next;
-  awake_thrd->state = THRD_READY;
-  thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
+static int wakeup_cmp(const void* a, const void* b) {
+  const uint64_t wakeup_a = ((tcb_t*)a)->wakeup_time;
+  const uint64_t wakeup_b = ((tcb_t*)b)->wakeup_time;
+
+  return (wakeup_a > wakeup_b) - (wakeup_a < wakeup_b);
 }
