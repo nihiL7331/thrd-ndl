@@ -4,6 +4,16 @@
 #include "utils.h"
 #include <thrd_ndl/thrd_ndl.h>
 #include <assert.h>
+#include <string.h>
+
+int cond_init(cond_t* cond) {
+  if (cond == NULL)
+    return THRD_EINVAL;
+
+  memset(cond, 0x0, sizeof(*cond));
+
+  return THRD_SUCCESS;
+}
 
 void cond_wait(cond_t* cond, mutex_t* mutex) {
   if (cond == NULL || mutex == NULL)
