@@ -3,6 +3,10 @@
 #include <stddef.h>
 #include <thrd_ndl/thrd_ndl.h>
 
+#define PARENT(i)  (((i) - 1) / 2)
+#define CHILD_L(i) (((i) * 2) + 1)
+#define CHILD_R(i) (((i) * 2) + 2)
+
 int heap_new(heap_t* heap, void** storage, size_t cap, int (*cmp_fn)(const void*, const void*)) {
   if (cap == 0 || heap == NULL || storage == NULL || cmp_fn == NULL)
     return THRD_EINVAL;
