@@ -45,14 +45,8 @@ int pool_destroy(pool_t* pool) {
   return THRD_SUCCESS;
 }
 
-void* pool_alloc(pool_t* pool, size_t size, size_t align) {
+void* pool_alloc(pool_t* pool) {
   if (pool == NULL)
-    return NULL;
-
-  if (align == 0 || (align & (align - 1)) != 0)
-    return NULL;
-
-  if (size == 0 || size > pool->chunk_size || align > pool->chunk_align)
     return NULL;
 
   preempt_disable();

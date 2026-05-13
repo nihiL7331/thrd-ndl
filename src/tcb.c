@@ -118,7 +118,7 @@ void tcb_destroy(tcb_t* tcb) {
 }
 
 tcb_t* tcb_alloc(void) {
-  tcb_t* tcb = pool_alloc(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t));
+  tcb_t* tcb = pool_alloc(&tcb_pool);
   if (tcb == NULL)
     return NULL;
 
