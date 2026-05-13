@@ -37,6 +37,10 @@ void mutex_lock(mutex_t* mutex) {
 
   preempt_enable();
 
+  // preempt enabled before yield is safe,
+  // because thread is blocked, and that
+  // prevents the re-enqueue.
+
   // push the thread off of cpu
   thrd_yield();
 }
