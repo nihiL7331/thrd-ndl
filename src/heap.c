@@ -14,3 +14,11 @@ int heap_new(heap_t* heap, void** storage, size_t cap, int (*cmp_fn)(const void*
 
   return THRD_SUCCESS;
 }
+
+void* heap_peek(const heap_t* heap) {
+  if (heap == NULL || heap->count == 0)
+    return NULL;
+
+  return heap->data[0];
+}
+
