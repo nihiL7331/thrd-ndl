@@ -129,7 +129,14 @@ Functions that return `int` use these codes:
 
 ## Implementation
 
-WIP
+This section will serve as a tutorial, split into *sections*, each adding a certain functionality to your threading library.
+Each section produces a working library that can be compiled and tested. 
+Feel free to experiment after finishing each section.
+
+Up until the last section, [Preemption](#preemption), the library is purely cooperative, meaning that a single thread can run indefinitely, unless explicitly told to stop by calling `thrd_yield`.
+This tutorial focuses solely on implementing *M:1* model threading. That means the whole process of this library runs on one OS thread, creating virtual threads.
+
+The tutorial expects a prior knowledge of the *C* language, as well as a deeper understanding of how the stack works. An ability to read *assembly* is also recommended. The final code can be found in the [src/](src/) directory.
 
 ## Roadmap
 
