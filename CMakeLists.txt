@@ -29,6 +29,7 @@ set(SOURCE_FILES
   src/mutex.c
   src/cond.c
   src/pool.c
+  src/heap.c
 )
 
 add_library(thrd_ndl STATIC ${SOURCE_FILES})
