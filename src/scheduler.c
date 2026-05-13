@@ -125,7 +125,7 @@ void thrd_init(void) {
 int thrd_create(thrd_t* out_thread, void (*func)(void)) {
   tcb_t* new_thrd = tcb_init(func);
   if (new_thrd == NULL)
-    return THRD_OOM;
+    return THRD_ENOMEM;
 
   // pass the address to the pointer given by the user
   if (out_thread != NULL)
