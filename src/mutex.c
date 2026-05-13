@@ -19,7 +19,8 @@ void mutex_lock(mutex_t* mutex) {
 
   // if mutex is unlocked,
   // then lock it and return
-  if (mutex_trylock(mutex) == THRD_SUCCESS) {
+  if (!mutex->is_locked) {
+    mutex->is_locked = 1;
     preempt_enable();
     return;
   }
