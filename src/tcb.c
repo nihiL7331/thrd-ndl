@@ -129,13 +129,13 @@ tcb_t* tcb_alloc(void) {
 int tcb_pool_init(void) {
   if (!pool_init) {
     int ret_val = pool_new(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t), POOL_THREAD_CNT);
-    if (ret_val == POOL_SUCCESS)
+    if (ret_val == THRD_SUCCESS)
       pool_init = 1;
 
     return ret_val;
   }
 
-  return POOL_SUCCESS;
+  return THRD_SUCCESS;
 }
 
 const char* state_to_str(thrd_state_t state) {
