@@ -40,7 +40,9 @@ void thrd_yield(void) {
 
       // remove from queue
       if (prev_dead == NULL)
-        dead_queue_hd = curr_dead->next;
+        // must save next before destroy,
+        // pool_free overwrites the tcb
+        dead_queue_hd = curr_dead->next; 
       else
         prev_dead->next = curr_dead->next;
       curr_dead = curr_dead->next;
@@ -55,6 +57,7 @@ void thrd_yield(void) {
   }
 
   // instantly update the state if the thrd was running
+  // blocked/sleeping threads already placed on a wait queue
   if (curr_thrd->state == THRD_RUNNING) {
     curr_thrd->state = THRD_READY;
     thrd_enqueue(curr_thrd, &rdy_queue_hd, &rdy_queue_tl);
