@@ -8,6 +8,8 @@
 #define CHILD_R(i) (((i) * 2) + 2)
 
 static inline void sift_up(heap_t* heap, size_t idx);
+static inline void sift_down(heap_t* heap, size_t idx);
+
 int heap_new(heap_t* heap, void** storage, size_t cap, int (*cmp_fn)(const void*, const void*)) {
   if (cap == 0 || heap == NULL || storage == NULL || cmp_fn == NULL)
     return THRD_EINVAL;
@@ -46,3 +48,25 @@ static inline void sift_up(heap_t* heap, size_t idx) {
   }
 }
 
+static inline void sift_down(heap_t* heap, size_t idx) {
+  while (1) {
+    size_t l_idx = CHILD_L(idx);
+    size_t r_idx = CHILD_R(idx);
+    size_t min_idx = idx;
+
+    if (l_idx < heap->count && heap->cmp(heap->data[l_idx], heap->data[min_idx]) < 0)
+      min_idx = l_idx;
+    
+    if (r_idx < heap->count && heap->cmp(heap->data[r_idx], heap->data[min_idx]) < 0)
+      min_idx = r_idx;
+
+    // if both indices are either out of range, or are bigger than data[idx],
+    // then break
+    if (min_idx == idx)
+      break;
+
+    // else swap and continue from the smallest index
+    heap_swap(heap, idx, min_idx);
+    idx = min_idx;
+  }
+}
