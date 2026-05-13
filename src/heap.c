@@ -22,6 +22,19 @@ int heap_new(heap_t* heap, void** storage, size_t cap, int (*cmp_fn)(const void*
   return THRD_SUCCESS;
 }
 
+int heap_push(heap_t* heap, void* obj) {
+  if (heap == NULL || obj == NULL)
+    return THRD_EINVAL;
+
+  if (heap->count == heap->cap)
+    return THRD_ENOMEM;
+
+  heap->data[heap->count++] = obj;
+  sift_up(heap, heap->count - 1);
+
+  return THRD_SUCCESS;
+}
+
 void* heap_peek(const heap_t* heap) {
   if (heap == NULL || heap->count == 0)
     return NULL;
