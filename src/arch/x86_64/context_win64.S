@@ -1,8 +1,8 @@
   .text
   .align 16
-  .global thrd_ndl_switch
+  .global thrd_switch
 
-thrd_ndl_switch:
+thrd_switch:
   /* push callee-saved registers onto the current stack */
   pushq %rbx
   pushq %rbp

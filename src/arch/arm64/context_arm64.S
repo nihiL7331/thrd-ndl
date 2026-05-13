@@ -1,7 +1,7 @@
 #ifdef __APPLE__
-  #define SYM_SWITCH _thrd_ndl_switch
+  #define SYM_SWITCH _thrd_switch
 #else
-  #define SYM_SWITCH thrd_ndl_switch
+  #define SYM_SWITCH thrd_switch
 #endif
 
   .text

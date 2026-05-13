@@ -12,7 +12,7 @@
 #include "utils.h"
 #include "heap.h"
 
-extern void thrd_ndl_switch(tcb_t* old_tcb, tcb_t* new_tcb);
+extern void thrd_switch(tcb_t* old_tcb, tcb_t* new_tcb);
 
 static tcb_t* curr_thrd = NULL;
 static tcb_t* rdy_queue_hd = NULL;
@@ -106,7 +106,7 @@ void thrd_yield(void) {
   curr_thrd->state = THRD_RUNNING;
 
   // call the asm context switch procedure
-  thrd_ndl_switch(old_thrd, curr_thrd);
+  thrd_switch(old_thrd, curr_thrd);
 
   preempt_enable();
 }

@@ -1,9 +1,9 @@
   .text
   .align 16
-  .global thrd_ndl_switch
-  .type thrd_ndl_switch, @function
+  .global thrd_switch
+  .type thrd_switch, @function
 
- /* void thrd_ndl_switch(tcb_t* old_tcb, tcb_t* new_tcb)
+ /* void thrd_switch(tcb_t* old_tcb, tcb_t* new_tcb)
   * 
   * this function is responsible for storing the callee-saved
   * registers data in the tcb_t (old_tcb) struct, as well as the stack pointer.
@@ -13,7 +13,7 @@
   * and call 'ret' to start the thread
   */
 
-thrd_ndl_switch:
+thrd_switch:
   /* push callee-saved registers onto the current stack */
   pushq %rbx
   pushq %rbp
@@ -40,7 +40,7 @@ thrd_ndl_switch:
   /* jump to new thread */
   ret
 
-.size thrd_ndl_switch, . - thrd_ndl_switch
+.size thrd_switch, . - thrd_switch
 
 #if defined(__linux__) && defined(__ELF__)
   .section .note.GNU-stack,"",%progbits
