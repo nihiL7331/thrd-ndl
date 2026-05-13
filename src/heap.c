@@ -22,3 +22,9 @@ void* heap_peek(const heap_t* heap) {
   return heap->data[0];
 }
 
+static inline void heap_swap(heap_t* heap, size_t idx_a, size_t idx_b) {
+  void* tmp = heap->data[idx_a];
+  heap->data[idx_a] = heap->data[idx_b];
+  heap->data[idx_b] = tmp;
+}
+
