@@ -4,9 +4,12 @@
 #include <stdint.h>
 
 // return codes
-#define THRD_SUCCESS 0
-#define THRD_OOM 1
-#define THRD_BUSY 2
+#define THRD_SUCCESS     0
+#define THRD_ENOMEM      1
+#define THRD_EBUSY       2
+#define THRD_EINVAL      3
+#define THRD_EPOOL_SMALL 4
+#define THRD_EUNINIT     5
 
 typedef void* thrd_t;
 

@@ -10,13 +10,6 @@ typedef struct {
   void*  free_hd;
 } pool_t;
 
-// return codes for allocator
-#define POOL_SUCCESS 0
-#define POOL_OOM 1
-#define POOL_ARG 2
-#define POOL_SMALL 3
-#define POOL_UNINIT 4
-
 int pool_new(pool_t* pool, size_t chunk_size, size_t chunk_align, size_t chunk_cnt);
 int pool_destroy(pool_t* pool);
 void* pool_alloc(pool_t* pool, size_t size, size_t align);

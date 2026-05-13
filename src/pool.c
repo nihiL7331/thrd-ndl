@@ -2,12 +2,13 @@
 #include "platform.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <thrd_ndl/thrd_ndl.h>
 
 static inline size_t align_up(size_t size, size_t align);
 
 int pool_new(pool_t* pool, size_t chunk_size, size_t chunk_align, size_t chunk_cnt) {
   if (pool == NULL || chunk_size == 0 || chunk_align == 0 || chunk_cnt == 0)
-    return POOL_ARG;
+    return THRD_EINVAL;
 
   pool->chunk_align = chunk_align;
 
@@ -17,31 +18,31 @@ int pool_new(pool_t* pool, size_t chunk_size, size_t chunk_align, size_t chunk_c
 
   pool->chunk_size = align_up(min_chunk_size, pool->chunk_align);
   if (pool->chunk_size > SIZE_MAX / chunk_cnt)
-    return POOL_SMALL;
+    return THRD_EPOOL_SMALL;
 
   pool->total_size = pool->chunk_size * chunk_cnt;
 
   pool->start_ptr = os_alloc(align_to_page(pool->total_size));
   if (pool->start_ptr == NULL)
-    return POOL_OOM;
+    return THRD_ENOMEM;
 
   pool_clear(pool);
 
-  return POOL_SUCCESS;
+  return THRD_SUCCESS;
 }
 
 int pool_destroy(pool_t* pool) {
   if (pool == NULL)
-    return POOL_ARG;
+    return THRD_EINVAL;
 
   if (pool->start_ptr == NULL)
-    return POOL_UNINIT;
+    return THRD_EUNINIT;
 
   os_free(pool->start_ptr, pool->total_size);
   pool->start_ptr = NULL;
   pool->free_hd = NULL;
 
-  return POOL_SUCCESS;
+  return THRD_SUCCESS;
 }
 
 void* pool_alloc(pool_t* pool, size_t size, size_t align) {
@@ -71,10 +72,10 @@ void* pool_alloc(pool_t* pool, size_t size, size_t align) {
 
 int pool_free(pool_t* pool, void* ptr) {
   if (pool == NULL || ptr == NULL)
-    return POOL_ARG;
+    return THRD_EINVAL;
 
   if (pool->start_ptr == NULL)
-    return POOL_UNINIT;
+    return THRD_EUNINIT;
 
   preempt_disable();
 
@@ -83,15 +84,15 @@ int pool_free(pool_t* pool, void* ptr) {
 
   preempt_enable();
 
-  return POOL_SUCCESS;
+  return THRD_SUCCESS;
 }
 
 int pool_clear(pool_t* pool) {
   if (pool == NULL)
-    return POOL_ARG;
+    return THRD_EINVAL;
 
   if (pool->start_ptr == NULL)
-    return POOL_UNINIT;
+    return THRD_EUNINIT;
 
   preempt_disable();
 
@@ -110,7 +111,7 @@ int pool_clear(pool_t* pool) {
 
   preempt_enable();
   
-  return POOL_SUCCESS;
+  return THRD_SUCCESS;
 }
 
 static inline size_t align_up(size_t size, size_t align) {
