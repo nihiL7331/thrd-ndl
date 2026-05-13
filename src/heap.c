@@ -42,6 +42,19 @@ void* heap_peek(const heap_t* heap) {
   return heap->data[0];
 }
 
+void* heap_pop(heap_t* heap) {
+  if (heap == NULL || heap->count == 0)
+    return NULL;
+
+  void* pop_data = heap->data[0];
+  heap->data[0] = heap->data[--heap->count];
+
+  // this does nothing if heap->count <= 1
+  sift_down(heap, 0);
+
+  return pop_data;
+}
+
 static inline void heap_swap(heap_t* heap, size_t idx_a, size_t idx_b) {
   void* tmp = heap->data[idx_a];
   heap->data[idx_a] = heap->data[idx_b];
