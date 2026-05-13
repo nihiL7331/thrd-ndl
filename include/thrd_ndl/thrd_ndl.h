@@ -32,6 +32,7 @@ void thrd_join(thrd_t thread);
 void thrd_sleep(uint64_t time_ms);
 void thrd_dump(void);
 
+int  mutex_init(mutex_t* mutex);
 void mutex_lock(mutex_t* mutex);
 void mutex_unlock(mutex_t* mutex);
 int  mutex_trylock(mutex_t* mutex);

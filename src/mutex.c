@@ -2,7 +2,17 @@
 #include "tcb.h"
 #include "scheduler.h"
 #include "utils.h"
+#include <string.h>
 #include <thrd_ndl/thrd_ndl.h>
+
+int mutex_init(mutex_t* mutex) {
+  if (mutex == NULL)
+    return THRD_EINVAL;
+
+  memset((void*)mutex, 0x0, sizeof(*mutex));
+
+  return THRD_SUCCESS;
+}
 
 void mutex_lock(mutex_t* mutex) {
   preempt_disable();
