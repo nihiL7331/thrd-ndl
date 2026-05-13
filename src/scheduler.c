@@ -183,6 +183,9 @@ void thrd_exit(void) {
 }
 
 void thrd_join(thrd_t thread) {
+  if (thread == NULL)
+    return;
+
   tcb_t* cast_thrd = (tcb_t*)thread;
 
   preempt_disable();
