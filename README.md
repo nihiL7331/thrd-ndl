@@ -326,6 +326,7 @@ The dummy slot shifts everything by one word so the entry function gets a proper
   <p><em>The fake initial stack frame written by <code>tcb_init</code>. The first <code>ret</code> after switching to this thread pops the entry point address and jumps there.</em></p>
 
 </div>
+
 For now we'll not have an option to free the `stack`, but it'll be handled later.
 
 Now, with the code finished, we're ready to put it all together. 
