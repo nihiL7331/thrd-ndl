@@ -484,6 +484,9 @@ Later we'll generalize these to take queue head/tail pointers as arguments, so t
 
 By keeping the invariant that a thread can live only on one queue at once (the dead queue, mutex wait queues, etc.), we can share that pointer.
 
+
+---
+
 ## Roadmap
 
 - [ ] Cover the Cooperative scheduling section of README implementation.
