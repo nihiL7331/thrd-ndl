@@ -225,7 +225,7 @@ Section [Thread lifecycle](#thread-lifecycle) (WIP) introduces a proper stack al
 
 But now, let's transfer the earned knowledge about the context switch to some assembly code.
 We'll create a `src/arch/x86_64/context_unix.S` file and create the following procedure.
-```asm
+```gas
   .text
   .align 16
   .global thrd_switch
