@@ -9,6 +9,34 @@
 
 </div>
 
+## Table of Contents
+
+- [Introduction](#introduction)
+  - [But what exactly are threads?](#but-what-exactly-are-threads)
+- [Quick start](#quick-start)
+  - [Hello, Thread!](#hello-thread)
+- [Public interface](#public-interface)
+  - [Return codes](#return-codes)
+  - [Threads](#threads)
+  - [Mutexes](#mutexes)
+  - [Condition variables](#condition-variables)
+- [Implementation](#implementation)
+  - [Build setup](#build-setup)
+  - [Context switching](#context-switching)
+    - [What's in the CPU state?](#whats-in-the-cpu-state)
+    - [Saving and resuming](#saving-and-resuming)
+    - [The TCB and the switcher](#the-tcb-and-the-switcher)
+    - [Public API](#public-api)
+    - [Thread initialization](#thread-initialization)
+    - [Putting it together](#putting-it-together)
+  - [Cooperative scheduling](#cooperative-scheduling)
+  - [Thread lifecycle](#thread-lifecycle)
+  - [Blocking primitives](#blocking-primitives)
+  - [Sleep and the heap](#sleep-and-the-heap)
+  - [Preemption](#preemption)
+- [Roadmap](#roadmap)
+- [Sources](#sources)
+
 ## Introduction
 
 Sometimes, as a programmer, you might encounter a situation, where you need to run two or more functions side by side.
