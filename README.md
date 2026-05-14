@@ -232,7 +232,7 @@ We'll create a `src/arch/x86_64/context_unix.S` file and create the following pr
   .type thrd_switch, @function
 
 thrd_switch:
-  # push callee-saved registers onto the current stack
+  // push callee-saved registers onto the current stack
   push %rbx
   push %rbp
   push %r12
@@ -240,14 +240,14 @@ thrd_switch:
   push %r14
   push %r15
 
-  # save the current stack pointer into old_tcb
-  # old_tcb->rsp is at offset 0
+  // save the current stack pointer into old_tcb
+  // old_tcb->rsp is at offset 0
   mov %rsp, (%rdi)
 
-  # load the new stack pointer
+  // load the new stack pointer
   mov (%rsi), %rsp
 
-  # pop the registers (reverse order to push)
+  // pop the registers (reverse order to push)
   pop %r15
   pop %r14
   pop %r13
@@ -255,7 +255,7 @@ thrd_switch:
   pop %rbp
   pop %rbx
 
-  # jump to new thread (instruction pointer is handled implicitly!)
+  // jump to new thread (instruction pointer is handled implicitly!)
   ret
 
 .size thrd_switch, . - thrd_switch
