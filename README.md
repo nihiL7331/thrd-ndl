@@ -226,11 +226,6 @@ Section [Thread lifecycle](#thread-lifecycle) (WIP) introduces a proper stack al
 But now, let's transfer the earned knowledge about the context switch to some assembly code.
 We'll create a `src/arch/x86_64/context_unix.S` file and create the following procedure.
 ```gas
-  .text
-  .align 16
-  .global thrd_switch
-  .type thrd_switch, @function
-
 thrd_switch:
   // push callee-saved registers onto the current stack
   push %rbx
@@ -257,12 +252,6 @@ thrd_switch:
 
   // jump to new thread (instruction pointer is handled implicitly!)
   ret
-
-.size thrd_switch, . - thrd_switch
-
-#if defined(__linux__) && defined(__ELF__)
-  .section .note.GNU-stack,"",%progbits
-#endif
 ```
 The version in [layer1/src/arch/x86_64/context_unix.S](layer1/src/arch/x86_64/context_unix.S) adds a few ELF directives.
 They're standard boilerplate, unrelated to the context switching itself.
