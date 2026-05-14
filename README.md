@@ -167,6 +167,8 @@ We will update this file as each section progresses.
 
 ### Context switching
 
+#### What's in the CPU state?
+
 By the end of this section, we want a function `thrd_switch(old, new)` that saves the current thread's CPU state and resumes another thread that was previously saved.
 You may wonder: what does the CPU state actually contain?
 
@@ -179,6 +181,8 @@ That was a high-level view of the CPU state. Concretely, what it actually consis
 * Callee-saved registers - these are values that the caller of the function is relying on us not to modify. On `x86_64` *Linux*, these are: `%rbx`, `%rbp` and `%r12-%r15`. On *Windows* there are more - `%rsi` and `%rdi` also need to be stored. We must preserve these across a switch, so we save them.
 * The stack pointer - it points to the top of the current call stack. Everything below it is the thread's history. We also save that value, to later restore the entire stack.
 * The instruction pointer - it stores the address of the next instruction to run. We will not save it directly - `ret` and the stack will handle it for us (more on that later).
+
+#### Saving and resuming
 
 We need to store the callee-saved registers somewhere. 
 To do that, we will use the thread's own stack, with the `push` instruction.
@@ -204,6 +208,8 @@ The procedure finishes with `ret`, handling the instruction pointer.
 The above works for any thread that has been suspended by `thrd_switch` before. 
 A brand-new thread has never been called this way, so its stack starts empty.
 This case will be handled when we set up new threads later, in this section.
+
+#### The TCB and the switcher
 
 We have been referring to 'the thread's struct' throughout, so let's define it now.
 We'll call the struct *TCB* - Thread Control Block.
@@ -256,6 +262,8 @@ thrd_switch:
 The version in [layer1/src/arch/x86_64/context_unix.S](layer1/src/arch/x86_64/context_unix.S) adds a few ELF directives.
 They're standard boilerplate, unrelated to the context switching itself.
 
+#### Public API
+
 The code maps perfectly to the logic we've gone over before.
 It's a good moment to expose a public API that will be called by the end user.
 Create a `include/thrd_ndl/thrd_ndl.h` file (or whatever name suits you best).
@@ -274,6 +282,9 @@ extern void thrd_switch(thrd_t old_tcb, thrd_t new_tcb);
 `thrd_switch` is really an internal primitive.
 Starting from the section [Cooperative scheduling](#cooperative-scheduling) (WIP), this will be abstracted away via `thrd_yield`.
 For now, we'll invoke it manually.
+
+#### Thread initialization
+
 Similarly, `tcb_init` will become an internal primitive starting from the section [Thread lifecycle](#thread-lifecycle) (also WIP).
 Now we need to handle the thread initialization, so that `thrd_switch` works properly.
 Create the file `tcb.c`.
@@ -328,6 +339,8 @@ The dummy slot shifts everything by one word so the entry function gets a proper
 </div>
 
 For now we'll not have an option to free the `stack`, but it'll be handled later.
+
+#### Putting it together
 
 Now, with the code finished, we're ready to put it all together. 
 The following demo creates two threads that take turns printing a counter, switching to each other manually.
