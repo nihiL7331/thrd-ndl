@@ -446,6 +446,7 @@ The complete code for this section lives in [layer1/](layer1/).
 
 ## Sources
 
+* [Thread control block - wikipedia](https://en.wikipedia.org/wiki/Thread_control_block)
 * [Concurrent programming by begriffs](https://begriffs.com/posts/2020-03-23-concurrent-programming.html)
 * [Threads in C are Pain by Tsoding](https://youtu.be/f-IlYeyTwzY?si=fGNUyaHwZ7GuoHle)
 * [libmill by Martin Sustrik](https://github.com/sustrik/libmill)
