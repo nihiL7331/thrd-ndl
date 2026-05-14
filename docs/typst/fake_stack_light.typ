@@ -28,19 +28,21 @@
 )
 
 #grid(
-  columns: (auto, auto),
+  columns: (auto, auto, auto),
   column-gutter: 12pt,
-  align: (right + horizon, left + horizon),
+  align: (right + horizon, left + horizon, left + horizon),
 
   text(size: 10pt, fill: col-ptr)[high addr \
     #sym.arrow.t],
   slot(col-entry, "entry function", note: "popped by ret"),
+  text(size: 10pt, fill: col-ptr)[ ],
 
-  [], slot(col-reg, "%r15"),
-  [], slot(col-reg, "%r14"),
-  [], slot(col-reg, "%r13"),
-  [], slot(col-reg, "%r12"),
-  [], slot(col-reg, "%rbp"),
+  [], slot(col-reg, "%r15"), [],
+  [], slot(col-reg, "%r14"), [],
+  [], slot(col-reg, "%r13"), [],
+  [], slot(col-reg, "%r12"), [],
+  [], slot(col-reg, "%rbp"), [],
   text(size: 10pt, fill: col-ptr)[low addr \ #sym.arrow.b],
   slot(col-reg, "%rbx", note: "tcb->rsp"),
+  text(size: 10pt, fill: col-ptr)[ ],
 )
