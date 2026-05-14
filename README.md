@@ -316,6 +316,7 @@ thrd_t tcb_init(void (*entry)(void)) {
   // stack pointer is at the top of the stack
   uint64_t* sp  = (uint64_t*)(stack + STACK_SIZE);
 
+  *(--sp) = 0;               // padding for ABI alignment
   *(--sp) = (uint64_t)entry; // fake return address for 'ret'
   sp -= CALLEE_REG_CNT;      // space for callee-saved registers
 
@@ -323,6 +324,9 @@ thrd_t tcb_init(void (*entry)(void)) {
   return tcb;
 }
 ```
+The extra 8-byte slot at the top is alignment padding.
+The *System V ABI* requires `%rsp` to be 8 mod 16 at function entry, but with only the return address and six callee-saved registers, the math comes out 16-aligned instead.
+The dummy slot shifts everything by one word so the entry function gets a properly aligned stack.
 <div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/fake_stack_dark.svg">

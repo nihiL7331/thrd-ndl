@@ -15,6 +15,7 @@
 #let col-reg = rgb("#21262D")
 #let col-border = rgb("#8B949E")
 #let col-ptr = rgb("#A5D6FF")
+#let col-pad = rgb("#8957E5")
 
 #let slot(bg, label, note: "") = rect(
   width: 180pt,
@@ -34,15 +35,18 @@
 
   text(size: 10pt, fill: col-ptr)[high addr \
     #sym.arrow.t],
-  slot(col-entry, "entry function", note: "popped by ret"),
-  text(size: 10pt, fill: col-ptr)[ ],
+  slot(col-pad, "padding", note: "ABI align"),
+  [],
+
+  [], slot(col-entry, "entry function", note: "popped by ret"), [],
 
   [], slot(col-reg, "%r15"), [],
   [], slot(col-reg, "%r14"), [],
   [], slot(col-reg, "%r13"), [],
   [], slot(col-reg, "%r12"), [],
   [], slot(col-reg, "%rbp"), [],
-  text(size: 10pt, fill: col-ptr)[ ],
+
+  [],
   slot(col-reg, "%rbx", note: "tcb->rsp"),
   text(size: 10pt, fill: col-ptr)[low addr \ #sym.arrow.b],
 )

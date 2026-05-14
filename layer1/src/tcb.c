@@ -19,6 +19,7 @@ thrd_t tcb_init(void (*entry)(void)) {
   // stack pointer is at the top of the stack
   uint64_t* sp  = (uint64_t*)(stack + STACK_SIZE);
 
+  *(--sp) = 0;               // padding for ABI alignment
   *(--sp) = (uint64_t)entry; // fake return address for 'ret'
   sp -= CALLEE_REG_CNT;      // space for callee-saved registers
 
