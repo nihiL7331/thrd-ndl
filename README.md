@@ -422,6 +422,68 @@ The next section will introduce `thrd_yield`, which delegates the decision of wh
 
 The complete code for this section lives in [layer1/](layer1/).
 
+### Cooperative scheduling
+
+So far we've handled everything in the demo explicitly.
+In this section, we'll implement the *scheduler* that'll handle some of that boilerplate for us.
+
+#### The ready queue
+
+In the previous section, we had to explicitly point out which thread fires when.
+Now, instead of that, we'll implement a concept known as *the ready queue*.
+It's a FIFO queue of threads.
+When one of the threads finishes its turn, the thread that is the head of said queue will fire next.
+
+We'll implement the scheduler in a new file: `src/scheduler.c`.
+Add `src/scheduler.c` to the `add_executable` block in the `CMakeLists.txt` file.
+Alongside the queue, we'll store the pointer to the currently running thread, like so:
+```c
+#include "tcb.h"
+
+static tcb_t* curr_thrd = NULL;
+static tcb_t* rdy_queue_hd = NULL;
+static tcb_t* rdy_queue_tl = NULL;
+```
+
+But right now we're missing the connection between each thread. 
+That's why we also need to add a `next` field in our `tcb_t` struct in the `src/tcb.h` file.
+```c
+typedef struct tcb {
+  void*       rsp;  // the stack pointer
+  struct tcb* next; // intrusive next link for queue threading
+} tcb_t;
+```
+
+We'll also need `enqueue`/`dequeue` helpers. These will live in the `src/scheduler.c`:
+```c
+static inline void rdy_enqueue(tcb_t* thrd) {
+  thrd->next = NULL;
+  
+  if (rdy_queue_tl == NULL)
+    rdy_queue_hd = thrd;
+  else
+    rdy_queue_tl->next = thrd;
+
+  rdy_queue_tl = thrd;
+}
+
+static inline tcb_t* rdy_dequeue(void) {
+  if (rdy_queue_hd == NULL)
+    return NULL;
+
+  tcb_t* thrd = rdy_queue_hd;
+
+  rdy_queue_hd = rdy_queue_hd->next;
+  if (rdy_queue_hd == NULL)
+    rdy_queue_tl = NULL;
+
+  return thrd;
+}
+```
+Later we'll generalize these to take queue head/tail pointers as arguments, so the same helpers serve mutex and dead queues.
+
+By keeping the invariant that a thread can live only on one queue at once (the dead queue, mutex wait queues, etc.), we can share that pointer.
+
 ## Roadmap
 
 - [ ] Cover the Cooperative scheduling section of README implementation.
