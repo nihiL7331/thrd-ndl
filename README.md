@@ -521,6 +521,54 @@ Notice `tcb_init` no longer touches the ready queue - registering a thread with 
 We'll also keep an invariant - `thrd->state == THRD_READY` if `thrd` is a part of the ready queue, and `thrd->state == THRD_RUNNING` if `thrd == curr_thrd`.
 This invariant will be taken care of in the next subsection, in the implementation of `thrd_yield`.
 
+#### `thrd_yield`
+
+This subsection will introduce the heart of the scheduler - the `thrd_yield` function.
+Remember the `thrd_switch` calls at the end of each loop iteration in the previous demo's `func_a`/`func_b`? Those are what `thrd_yield` replaces.
+This is what `thrd_yield` will replace.
+First, declare it in the public API header, `include/thrd_ndl/thrd_ndl.h`:
+```c
+#ifndef THRD_NDL_H
+#define THRD_NDL_H
+
+// ... the rest of the API
+void thrd_yield(void);
+
+#endif // THRD_NDL_H
+```
+
+Using the ready queue we laid foundations for, it will pick the next thread to run.
+This function will end `curr_thrd`'s turn, and pick the head of the ready queue as the next running thread.
+If `curr_thrd` is the only ready thread, we switch to ourselves - it's a no-op, but it's harmless.
+In later sections, threads will sometimes yield without wanting to be re-queued (e.g. while sleeping). We'll restructure this then.
+```c
+#include <assert.h> // include this!
+
+// ...
+
+void thrd_yield(void) {
+  // stop the current thread from running
+  curr_thrd->state = THRD_READY;
+  rdy_enqueue(curr_thrd);
+
+  // pop the ready queue's head
+  tcb_t* next_thrd = rdy_dequeue();
+  assert(next_thrd != NULL);
+
+  // set 'next_thrd' as 'curr_thrd'
+  tcb_t* old_thrd = curr_thrd;
+  curr_thrd = next_thrd;
+  curr_thrd->state = THRD_RUNNING;
+
+  // call the asm context switch procedure
+  thrd_switch(old_thrd, curr_thrd);
+}
+```
+In this section the ready queue can't be empty after the enqueue above, since `curr_thrd` was just placed onto it.
+When we add more states like `BLOCKED`, `SLEEPING` or `DEAD`, we'll revisit this branch and handle it correctly.
+
+When this thread is later rescheduled, `thrd_switch` returns into the middle of `thrd_yield`, which then returns to whoever called it - exactly as if the function has paused and resumed.
+
 ---
 
 ## Roadmap
