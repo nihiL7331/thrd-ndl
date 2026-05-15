@@ -29,11 +29,8 @@ int main(void) {
 
   thrd_t t1, t2;
 
-  int err1 = thrd_create(&t1, inc_task);
-  int err2 = thrd_create(&t2, inc_task);
-
-  assert(err1 == THRD_SUCCESS && "failed to create thrd 1");
-  assert(err2 == THRD_SUCCESS && "failed to create thrd 2");
+  assert(thrd_create(&t1, inc_task) == THRD_SUCCESS && "failed to create thrd 1");
+  assert(thrd_create(&t2, inc_task) == THRD_SUCCESS && "failed to create thrd 2");
 
   thrd_join(t1);
   thrd_join(t2);

@@ -22,10 +22,8 @@ int main(void) {
 
   thrd_t thrd_a, thrd_b;
 
-  int err1 = thrd_create(&thrd_a, task_a);
-  int err2 = thrd_create(&thrd_b, task_b);
-  assert(err1 == THRD_SUCCESS && "failed to create thread A");
-  assert(err2 == THRD_SUCCESS && "failed to create thread B");
+  assert(thrd_create(&thrd_a, task_a) == THRD_SUCCESS && "failed to create thread A");
+  assert(thrd_create(&thrd_b, task_b) == THRD_SUCCESS && "failed to create thread B");
 
   thrd_sleep(1000);
 

@@ -51,11 +51,8 @@ int main(void) {
 
   thrd_t prod_thrd, cons_thrd;
 
-  int err1 = thrd_create(&prod_thrd, prod_task);
-  int err2 = thrd_create(&cons_thrd, cons_task);
-
-  assert(err1 == THRD_SUCCESS && "failed to create producer");
-  assert(err2 == THRD_SUCCESS && "failed to create consumer");
+  assert(thrd_create(&prod_thrd, prod_task) == THRD_SUCCESS && "failed to create producer");
+  assert(thrd_create(&cons_thrd, cons_task) == THRD_SUCCESS && "failed to create consumer");
 
   thrd_join(prod_thrd);
   thrd_join(cons_thrd);
