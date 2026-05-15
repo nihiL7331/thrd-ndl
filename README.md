@@ -525,7 +525,6 @@ This invariant will be taken care of in the next subsection, in the implementati
 
 This subsection will introduce the heart of the scheduler - the `thrd_yield` function.
 Remember the `thrd_switch` calls at the end of each loop iteration in the previous demo's `func_a`/`func_b`? Those are what `thrd_yield` replaces.
-This is what `thrd_yield` will replace.
 First, declare it in the public API header, `include/thrd_ndl/thrd_ndl.h`:
 ```c
 #ifndef THRD_NDL_H
