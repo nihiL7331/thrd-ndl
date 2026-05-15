@@ -484,6 +484,42 @@ Later we'll generalize these to take queue head/tail pointers as arguments, so t
 
 By keeping the invariant that a thread can live only on one queue at once (the dead queue, mutex wait queues, etc.), we can share that pointer.
 
+#### Thread state
+
+Later we'll have multiple queues, and we'll need a way to tell a dead thread from a blocked, ready, or running one.
+
+That's why in this section we'll add a new enum for the thread's current state.
+For now we'll keep it minimal, since currently a thread is either running on the CPU or waiting on the ready queue.
+
+Update your `src/tcb.h` file like so:
+```c
+typedef enum {
+  THRD_READY,
+  THRD_RUNNING,
+} thrd_state_t;
+
+typedef struct tcb {
+  void*        rsp;   // the stack pointer
+  struct tcb*  next;  // intrusive next link for queue threading
+  thrd_state_t state; // current scheduler state
+} tcb_t;
+```
+Future sections will add more states: `DEAD`, `BLOCKED`, `SLEEPING`.
+
+With new struct fields added, we should also clear them in `src/tcb.c` in the `tcb_init` function:
+```c
+thrd_t tcb_init(void (*entry)(void)) {
+  // ... malloc and stack logic ...
+
+  tcb->rsp = sp;
+  tcb->state = THRD_READY;
+  return tcb;
+}
+```
+Notice `tcb_init` no longer touches the ready queue - registering a thread with the scheduler is the caller's responsibility, which we'll handle in the upcoming subsections.
+
+We'll also keep an invariant - `thrd->state == THRD_READY` if `thrd` is a part of the ready queue, and `thrd->state == THRD_RUNNING` if `thrd == curr_thrd`.
+This invariant will be taken care of in the next subsection, in the implementation of `thrd_yield`.
 
 ---
 
