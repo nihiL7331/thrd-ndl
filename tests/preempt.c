@@ -18,7 +18,7 @@ void task_b(void) {
 }
 
 int main(void) {
-  thrd_init();
+  assert(thrd_init() == THRD_SUCCESS && "failed to main initialize");
 
   thrd_t thrd_a, thrd_b;
 

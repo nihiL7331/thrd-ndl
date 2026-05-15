@@ -111,18 +111,20 @@ void thrd_yield(void) {
   preempt_enable();
 }
 
-void thrd_init(void) {
+int thrd_init(void) {
   // if the thread is already initialized, just return
   if (curr_thrd != NULL)
-    return;
+    return THRD_EINVAL;
 
   // initialize the thread pool allocator
-  if (tcb_pool_init() != 0)
-    return;
+  int pool_ret_val = tcb_pool_init();
+  if (pool_ret_val != THRD_SUCCESS)
+    return pool_ret_val;
 
   // initialize sleep binary heap
-  if (heap_new(&sleep_queue, sleep_heap_storage, POOL_THRD_CNT, wakeup_cmp) != THRD_SUCCESS)
-    return;
+  int heap_ret_val = heap_new(&sleep_queue, sleep_heap_storage, POOL_THRD_CNT, wakeup_cmp);
+  if (heap_ret_val != THRD_SUCCESS)
+    return heap_ret_val;
 
   // make a dummy thread
   tcb_t* init_thrd = tcb_alloc();
@@ -137,6 +139,8 @@ void thrd_init(void) {
   // at the end, so that it doesnt fire
   // during the previous thread allocation
   timer_init();
+
+  return THRD_SUCCESS;
 }
 
 int thrd_create(thrd_t* out_thread, void (*func)(void)) {

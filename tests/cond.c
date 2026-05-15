@@ -43,7 +43,7 @@ void cons_task(void) {
 }
 
 int main(void) {
-  thrd_init();
+  assert(thrd_init() == THRD_SUCCESS && "failed to main initialize");
 
   mutex_init(&shared_mut);
   cond_init(&not_empty);

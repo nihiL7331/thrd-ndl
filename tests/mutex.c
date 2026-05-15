@@ -23,7 +23,7 @@ void inc_task(void) {
 }
 
 int main(void) {
-  thrd_init();
+  assert(thrd_init() == THRD_SUCCESS && "failed to main initialize");
 
   mutex_init(&cntr_mutex);
 

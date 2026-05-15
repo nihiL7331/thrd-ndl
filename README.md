@@ -80,7 +80,8 @@ void thrd_b_func(void) {
 }
 
 int main(void) {
-  thrd_init();
+  if (thrd_init() != THRD_SUCCESS)
+    return 1;
 
   thrd_t thrd_a, thrd_b;
 
@@ -123,7 +124,7 @@ Functions that return `int` use these codes:
 
 ### Threads
 
-* `thrd_init` - must be called once before anything else. Sets up the scheduler and creates the implicit main thread.
+* `int thrd_init` - must be called once before anything else. Sets up the scheduler and creates the implicit main thread. Returns `THRD_SUCCESS` on success, `THRD_EINVAL` if called more than once, or `THRD_ENOMEM` if the underlying OS allocation fails.
 * `int thrd_create(thrd_t* out_thread, void (*func)(void))` - creates a new thread. Returns `THRD_SUCCESS` or `THRD_ENOMEM` if the pool is exhausted.
 * `thrd_yield` - voluntarily hands control to the next ready thread.
 * `thrd_sleep(uint64_t time_ms)` - suspends the current thread for at least `time_ms` milliseconds.
