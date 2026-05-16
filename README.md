@@ -282,7 +282,7 @@ thrd_switch:
   // jump to new thread (instruction pointer is handled implicitly!)
   ret
 ```
-The version in [layer1/src/arch/x86_64/context_unix.S](layer1/src/arch/x86_64/context_unix.S) adds a few ELF directives.
+The version in [tutorial/section1/src/arch/x86_64/context_unix.S](tutorial/section1/src/arch/x86_64/context_unix.S) adds a few ELF directives.
 They're standard boilerplate, unrelated to the context switching itself.
 
 #### Public API
@@ -421,7 +421,7 @@ Without this, control would fall off the end of the function and segfault, becau
 Manual `thrd_switch` calls are the rawest possible form of cooperative scheduling.
 The next section will introduce `thrd_yield`, which delegates the decision of who runs next to the scheduler.
 
-The complete code for this section lives in [layer1/](layer1/).
+The complete code for this section lives in [tutorial/section1/](tutorial/section1/).
 
 ### Cooperative scheduling
 
@@ -757,7 +757,7 @@ done
 The next section will introduce `thrd_create` and `thrd_exit`, finishing the thread lifecycle.
 Beginning from the next section, the scheduler will have to handle a brand new queue: the dead queue.
 
-The complete code for this section lives in [layer2/](layer2/).
+The complete code for this section lives in [tutorial/section2/](tutorial/section2/).
 
 ---
 
