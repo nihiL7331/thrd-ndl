@@ -569,6 +569,65 @@ When we add more states like `BLOCKED`, `SLEEPING` or `DEAD`, we'll revisit this
 
 When this thread is later rescheduled, `thrd_switch` returns into the middle of `thrd_yield`, which then returns to whoever called it - exactly as if the function has paused and resumed.
 
+#### `thrd_init`
+
+In the previous demo, we wrote hacky but working code for initializing the `main_thrd`.
+To replace it with something more proper, we'll implement a `thrd_init` function.
+Later, it will also handle things like the pool allocator and timer initialization.
+But for now let's keep it simple.
+
+While `tcb_init` constructs a thread that doesn't yet exist, `thrd_init` registers the thread that's already running.
+The OS gave main its stack when the program started. Allocating a new one would be pointless.
+There's also no need to set up the fake stack frame, since main has no entry point to jump to.
+It's already running, having been set up the normal way via [`_start`](https://www.gnu.org/software/hurd/glibc/startup.html)
+We don't need to set up `rsp` either. 
+The first `thrd_switch` involving main will switch away from it (main as `old_tcb`), writing main's real `%rsp` into this slot before anyone reads it.
+`NULL` is just a placeholder until that happens.
+We also need to set the state to `THRD_RUNNING` immediately, since when `thrd_init` is called, we're already running the main thread.
+After `thrd_init` returns, the scheduler invariants from the [Thread state](#thread-state) subsection hold - `curr_thrd` points to the running thread, the ready queue is empty, and main is ready to be context-switched out the moment the first worker is created and scheduled.
+
+We'll declare `thrd_init` in `include/thrd_ndl/thrd_ndl.h`.
+This is also our first function that returns a status code.
+We'll add the return code definitions to the public API as well.
+```c
+#ifndef THRD_NDL_H
+#define THRD_NDL_H
+
+// return codes
+#define THRD_SUCCESS 0
+#define THRD_EINVAL  1
+#define THRD_ENOMEM  2
+
+// ... the rest of the API
+int thrd_init(void);
+
+#endif // THRD_NDL_H
+```
+We'll implement it in the `src/scheduler.c` file.
+```c
+#include <stdlib.h> // include this!
+
+int thrd_init(void) {
+  // if the thread is already initialized, just return
+  if (curr_thrd != NULL)
+    return THRD_EINVAL;
+
+  tcb_t* init_thrd = (tcb_t*)malloc(sizeof(tcb_t));
+  if (init_thrd == NULL)
+    return THRD_ENOMEM;
+
+  init_thrd->rsp = NULL;
+  init_thrd->next = NULL;
+  init_thrd->state = THRD_RUNNING;
+
+  curr_thrd = init_thrd;
+
+  return THRD_SUCCESS;
+}
+```
+We don't free the main thread's TCB, since it lives for the lifetime of the program.
+The pool allocator in [Thread lifecycle](#thread-lifecycle) will replace it anyway.
+
 ---
 
 ## Roadmap
