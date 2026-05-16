@@ -759,6 +759,110 @@ Beginning from the next section, the scheduler will have to handle a brand new q
 
 The complete code for this section lives in [tutorial/section2/](tutorial/section2/).
 
+### Thread lifecycle
+
+As the name suggests, in this section we'll handle the thread lifecycle.
+In the previous sections, we were fine with leaving every thread non-freed after they've served their purpose.
+This section will implement a dead queue to cover that issue.
+But before that, we will replace the `malloc` calls with something more suitable for this project - the pool allocator.
+Before that, we need to implement a platform layer for calling to the OS for memory directly.
+This is exactly what we'll start off with.
+
+#### Platform
+
+We'll use this platform layer for two distinct purposes - backing the pool allocator (introduced in the next subsection) and allocating thread stacks with overflow protection (when we get to `thrd_create`).
+Both need OS-level [page](https://en.wikipedia.org/wiki/Page_(computer_memory)) allocation, and the stack case additionally needs a way to mark pages unreadable.
+Consider the thread's behavior if we used `malloc` to allocate the stack.
+When a thread's stack grows past its allocated size, e.g. via deep recursion, it'll silently overwrite adjacent memory unless something stops it.
+A guard page is that something: a page marked unreadable, placed immediately past the end the stack would grow into.
+Any access to it segfaults.
+POSIX exposes two functions that solve this: `mmap` and `mprotect`. Their Windows counterparts are `VirtualAlloc` and `VirtualProtect`.
+`mmap` allows us to ask for a page of memory directly.
+`mprotect` allows us to 'protect' a certain memory page - causing any access to this memory to result in a segmentation fault.
+
+With those two, we can allocate the needed memory + 1 page, and mark the first page (at the lowest address) as protected.
+The stack grows downward from the high end of the region, so an overflow eventually crosses into the guard page and faults.
+
+One thing we need to mention is that `mmap` expects a page-aligned size to be passed.
+That's why we'll also need to add an `align_to_page` helper.
+Since it's an OS-dependent implementation, let's declare it in a new `src/platform.h` file:
+```c
+#pragma once
+
+#include <stddef.h>
+
+void*  os_alloc(size_t size);
+void   os_free(void* ptr, size_t size);
+
+int    protect_page(void* ptr, size_t size);
+size_t page_size(void);
+```
+The implementation is straightforward, put it in `src/platform.c`:
+```c
+#include "platform.h"
+
+#ifdef _WIN32
+  #define NOMINMAX
+  #include <windows.h>
+#else
+  #include <sys/mman.h>
+  #include <unistd.h>
+#endif
+
+static inline size_t align_to_page(size_t size) {
+  size_t p_size = page_size();
+  return (size + (p_size - 1)) & ~(p_size - 1);
+}
+
+void* os_alloc(size_t size) {
+#ifdef _WIN32
+  void* ptr = VirtualAlloc(NULL, align_to_page(size), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+  return ptr;
+#else
+  void* ptr = mmap(NULL, align_to_page(size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+  return (ptr == MAP_FAILED) ? NULL : ptr;
+#endif
+}
+
+void os_free(void* ptr, size_t size) {
+  if (ptr == NULL) 
+    return;
+
+#ifdef _WIN32
+  (void)size;
+  VirtualFree(ptr, 0, MEM_RELEASE);
+#else
+  munmap(ptr, size);
+#endif
+}
+
+int protect_page(void* ptr, size_t size) {
+#ifdef _WIN32
+  DWORD old_prot = 0;
+  BOOL success = VirtualProtect(ptr, size, PAGE_NOACCESS, &old_prot);
+  return success ? 0 : -1;
+#else
+  return mprotect(ptr, size, PROT_NONE);
+#endif
+}
+
+size_t page_size(void) {
+  static size_t cached_page_size = 0;
+  if (cached_page_size == 0) {
+#ifdef _WIN32
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    cached_page_size = (size_t)sysInfo.dwPageSize;
+#else
+    cached_page_size = (size_t)sysconf(_SC_PAGESIZE);
+#endif
+  }
+  return cached_page_size;
+}
+```
+Callers don't have to think about page alignment - `os_alloc` handles it.
+With this implemented, we can now use it in the pool allocator.
+
 ---
 
 ## Roadmap
