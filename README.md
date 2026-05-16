@@ -757,6 +757,8 @@ done
 The next section will introduce `thrd_create` and `thrd_exit`, finishing the thread lifecycle.
 Beginning from the next section, the scheduler will have to handle a brand new queue: the dead queue.
 
+The complete code for this section lives in [layer2/](layer2/).
+
 ---
 
 ## Roadmap
