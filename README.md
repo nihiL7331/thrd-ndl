@@ -167,6 +167,11 @@ Each section has its source code in the corresponding `layerX` directory.
 
 This entire section will use `x86_64` as the primary example, with the `ARM64` covered at the end.
 
+Windows support uses `VirtualAlloc`-backed stacks and hand-written assembly switches, like the Linux path.
+However on Windows, the OS tracks the current stack via the [Thread Information Block](https://en.wikipedia.org/wiki/Win32_Thread_Information_Block), which this implementation doesn't update.
+Because of that, large stack frames (which trigger `__chkstk`), structured exception handling, and some CRT functions may misbehave on worker threads.
+There are ways to solve that issue: Windows [Fibers](https://learn.microsoft.com/en-us/windows/win32/procthread/fibers), or manual TIB updates, but they are out of scope for this tutorial.
+
 ### Build setup
 
 This project will use CMake as a build tool.
