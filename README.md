@@ -581,10 +581,11 @@ At the top of the `src/scheduler.c` file, you can now locally forward-declare `t
 ```c
 // static declarations ...
 
-extern void thrd_switch(tcb_t* old_tcb, tcb_t* new_tcb); // thrd_t -> tcb_t* !
+extern void thrd_switch(tcb_t* old_tcb, tcb_t* new_tcb);
 
 void thrd_yield(void) { /* ... */ }
 ```
+Since this declaration lives in `scheduler.c` where `tcb_t` is visible, we can use the concrete type instead of the opaque `thrd_t` the public header used.
 
 #### `thrd_init`
 
@@ -654,17 +655,17 @@ Because it's temporary, let's place it in a new internal header, `src/scheduler.
 ```c
 #pragma once
 
-#include "tcb.h"
+#include <thrd_ndl/thrd_ndl.h>
 
-void thrd_register(tcb_t* thrd);
+void thrd_register(thrd_t thrd);
 ```
 Implementation lives in `src/scheduler.c`, below the queue helpers it wraps.
 ```c
-void thrd_register(tcb_t* thrd) {
+void thrd_register(thrd_t thrd) {
   if (thrd == NULL)
     return;
 
-  rdy_enqueue(thrd);
+  rdy_enqueue((tcb_t*)thrd);
 }
 ```
 We wrap `rdy_enqueue` instead of exposing it directly because the wrapper names what the caller wants to do (register a thread) without forcing them to know how it's implemented (push to the ready queue).
