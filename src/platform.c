@@ -24,6 +24,8 @@
 #define PREEMPT_TIMER_INTERVAL 13370
 static volatile int preempt_cnt = 0;
 
+static inline size_t align_to_page(size_t size);
+
 uint64_t get_os_time(void) {
 #ifdef _WIN32
   static LARGE_INTEGER win_freq = {0};
@@ -56,10 +58,10 @@ void os_sleep_ms(uint64_t time_ms) {
 // OS call for memory page
 void* os_alloc(size_t size) {
 #ifdef _WIN32
-  void* ptr = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+  void* ptr = VirtualAlloc(NULL, align_to_page(size), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   return ptr;
 #else
-  void* ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+  void* ptr = mmap(NULL, align_to_page(size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
   return (ptr == MAP_FAILED) ? NULL : ptr;
 #endif
 }
@@ -73,17 +75,17 @@ void os_free(void* ptr, size_t size) {
   (void)size;
   VirtualFree(ptr, 0, MEM_RELEASE);
 #else
-  munmap(ptr, size);
+  munmap(ptr, align_to_page(size));
 #endif
 }
 
 int protect_page(void* ptr, size_t size) {
 #ifdef _WIN32
   DWORD old_prot = 0;
-  BOOL success = (int)VirtualProtect(ptr, size, PAGE_NOACCESS, &old_prot);
+  BOOL success = (int)VirtualProtect(ptr, align_to_page(size), PAGE_NOACCESS, &old_prot);
   return success ? 0 : -1;
 #else
-  return mprotect(ptr, size, PROT_NONE);
+  return mprotect(ptr, align_to_page(size), PROT_NONE);
 #endif
 }
 
@@ -199,3 +201,9 @@ void timer_init(void) {
   }
 #endif
 }
+
+static inline size_t align_to_page(size_t size) {
+  size_t p_size = page_size();
+  return (size + (p_size - 1)) & ~(p_size - 1);
+}
+

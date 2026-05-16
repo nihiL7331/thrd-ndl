@@ -39,9 +39,10 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   if (tcb == NULL)
     return NULL;
 
-  // get page-aligned size + one page for stack overflow safety
+  // get size + one page for stack overflow safety
+  // page alignment is handled in platform.c internally
   // if the bottom page ever is touched, it will just seg fault
-  size_t size = align_to_page(THRD_STACK_SIZE + page_size());
+  size_t size = THRD_STACK_SIZE + page_size();
   void* stack_ptr = os_alloc(size);
   if (stack_ptr == NULL) {
     tcb_destroy(tcb);
@@ -170,7 +171,7 @@ void tcb_dump_one(tcb_t* tcb) {
     state_to_str(tcb->state),
     (void *)tcb->bsp,
     (void *)tcb->rsp,
-    (uint64_t)((uint8_t*)tcb->bsp + align_to_page(THRD_STACK_SIZE + page_size()) - (uint8_t*)tcb->rsp)
+    (uint64_t)((uint8_t*)tcb->bsp + THRD_STACK_SIZE + page_size() - (uint8_t*)tcb->rsp)
   );
   if (tcb->state == THRD_SLEEPING)
     fprintf(stderr, "wakeup time: %"PRIu64"\n", tcb->wakeup_time);
