@@ -869,6 +869,189 @@ size_t page_size(void) {
 Callers don't have to think about page alignment - `os_alloc` handles it.
 With this implemented, we can now use it in the pool allocator.
 
+#### Pool allocator
+
+A pool allocator handles allocation on a chunk of memory by splitting it up into equally sized chunks.
+This allows for *O(1)* allocation and free, without posing any constraints for our use-case.
+
+To track free memory, it uses an intrusive singly-linked list, storing the `next` pointer directly inside the free block.
+
+We'll define the allocator as a struct, which will then be passed to corresponding functions.
+To freely walk through the allocator's memory, we need to know each chunk's size, as well as the total size of allocated memory.
+We also need to know where that allocated memory lives.
+To achieve that *O(1)* free time, we'll also store the head of the intrusive free list.
+
+We'll implement a generic pool allocator in its own file.
+Let's begin with the declarations inside the newly created `src/pool.h` file:
+
+```c
+#pragma once
+
+#include <stddef.h>
+
+typedef struct {
+  size_t chunk_size;
+  size_t total_size;
+  void*  start_ptr;
+  void*  free_hd;
+} pool_t;
+
+int   pool_new(pool_t* pool, size_t chunk_size, size_t chunk_align, size_t chunk_cnt);
+int   pool_destroy(pool_t* pool);
+void* pool_alloc(pool_t* pool);
+int   pool_free(pool_t* pool, void* ptr);
+int   pool_clear(pool_t* pool);
+```
+
+For this implementation we'll need one new return code in `include/thrd_ndl/thrd_ndl.h`:
+
+```c
+// return codes ...
+#define THRD_EUNINIT 3
+```
+
+We'll also need those includes in the `src/pool.c` file:
+
+```c
+#include "pool.h"
+#include "platform.h"          // include this for `os_alloc`, `os_free`
+#include <thrd_ndl/thrd_ndl.h> // for return codes
+#include <stdint.h>
+```
+
+Now, let's go step by step, implementing every function declared in the header.
+
+We'll begin out of order - with the `pool_clear` function.
+We do that, because `pool_new` will call `pool_clear` internally.
+`pool_clear` is essentially the zero-initializer for an already existing pool.
+It walks through every chunk and chains them into a single free list.
+
+```c
+int pool_clear(pool_t* pool) {
+  if (pool == NULL)
+    return THRD_EINVAL;
+
+  if (pool->start_ptr == NULL)
+    return THRD_EUNINIT;
+
+  uint8_t* raw_mem = (uint8_t*)pool->start_ptr;
+  size_t num_chunks = pool->total_size / pool->chunk_size;
+
+  for (size_t i = 0; i < num_chunks - 1; ++i) {
+    void** curr_chunk = (void**)(raw_mem + i * pool->chunk_size);
+    void*  next_chunk = raw_mem + (i + 1) * pool->chunk_size;
+    *curr_chunk = next_chunk;
+  }
+
+  void** last_chunk = (void**)(raw_mem + (num_chunks - 1) * pool->chunk_size);
+  *last_chunk = NULL;
+  pool->free_hd = pool->start_ptr;
+
+  return THRD_SUCCESS;
+}
+```
+
+Now we can tackle the `pool_new` function.
+It will be responsible for initializing the pool allocator.
+The initialized memory's size is based on a few variables:
+* The memory size has to be page-aligned (handled in `os_alloc`),
+* The minimum chunk size must be big enough to fit a pointer (for the intrusive list),
+* The chunk size must be aligned to the passed value.
+To handle the last case, we will implement a helper in `src/pool.c`:
+
+```c
+static inline size_t align_up(size_t size, size_t align) {
+  return (size + (align - 1)) & ~(align - 1);
+}
+```
+
+With everything in place, we can implement `pool_new` in `src/pool.c`:
+
+```c
+int pool_new(pool_t* pool, size_t chunk_size, size_t chunk_align, size_t chunk_cnt) {
+  if (pool == NULL || chunk_size == 0 || chunk_align == 0 || chunk_cnt == 0)
+    return THRD_EINVAL;
+
+  size_t min_chunk_size = chunk_size;
+  if (sizeof(void*) > min_chunk_size)
+    min_chunk_size = sizeof(void*);
+
+  pool->chunk_size = align_up(min_chunk_size, chunk_align);
+  if (pool->chunk_size > SIZE_MAX / chunk_cnt)
+    return THRD_EINVAL;
+
+  pool->total_size = pool->chunk_size * chunk_cnt;
+
+  pool->start_ptr = os_alloc(pool->total_size);
+  if (pool->start_ptr == NULL)
+    return THRD_ENOMEM;
+
+  pool_clear(pool);
+
+  return THRD_SUCCESS;
+}
+```
+
+`pool_destroy` will just safely clean the allocated memory.
+
+```c
+int pool_destroy(pool_t* pool) {
+  if (pool == NULL)
+    return THRD_EINVAL;
+
+  if (pool->start_ptr == NULL)
+    return THRD_EUNINIT;
+
+  os_free(pool->start_ptr, pool->total_size);
+  pool->start_ptr = NULL;
+  pool->free_hd = NULL;
+
+  return THRD_SUCCESS;
+}
+```
+
+`pool_alloc` is the heart of this subsection's implementation.
+Despite its significance, its implementation is simple - it just pops the head off the free list, and returns it to the caller.
+
+```c
+void* pool_alloc(pool_t* pool) {
+  if (pool == NULL)
+    return NULL;
+
+  if (pool->free_hd == NULL)
+    return NULL;
+
+  // each free chunk's first bytes 
+  // hold the address of the next free chunk
+  void* ret_head = pool->free_hd;
+  pool->free_hd = *(void**)pool->free_hd;
+
+  return ret_head;
+}
+```
+
+`pool_free` is the opposite of `pool_alloc` - given `ptr` as an argument, it pushes it onto the free list.
+Since it's an internal implementation, we don't need to worry about someone passing a pointer from outside the pool's memory.
+
+```c
+int pool_free(pool_t* pool, void* ptr) {
+  if (pool == NULL || ptr == NULL)
+    return THRD_EINVAL;
+
+  if (pool->start_ptr == NULL)
+    return THRD_EUNINIT;
+
+  *((void**)ptr) = pool->free_hd;
+  pool->free_hd = ptr;
+
+  return THRD_SUCCESS;
+}
+```
+
+With this, we've successfully implemented the pool allocator, which we'll use in the later sections.
+
+For a more in-depth explanation of how allocators work, feel free to visit [this](https://github.com/nihiL7331/oo-alloc.git) repository.
+
 ---
 
 ## Roadmap
