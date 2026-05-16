@@ -684,7 +684,7 @@ This will be abstracted away via `thrd_create` in the next section, [Thread life
 However, workers can't cleanly terminate yet. 
 After the loop, we increment a shared `completed` counter and enter `while (1) thrd_yield();`, yielding forever instead of returning.
 Returning would fall off the end of the function and segfault.
-This will be handled in the next section, [Thread lifecycle](#thread-lifecycle), with the addition of `thrd_exit`.
+This will also be handled in the next section, [Thread lifecycle](#thread-lifecycle), with the addition of `thrd_exit`.
 
 Main's `while (completed < 2) thrd_yield();` is the same kind of stopgap on the other end.
 It blocks by yielding because there's no `thrd_join` yet implemented to make it sleep until workers finish.
