@@ -792,6 +792,7 @@ The stack grows downward from the high end of the region, so an overflow eventua
 One thing we need to mention is that `mmap` expects a page-aligned size to be passed.
 That's why we'll also need to add an `align_to_page` helper.
 Since it's an OS-dependent implementation, let's declare it in a new `src/platform.h` file:
+
 ```c
 #pragma once
 
@@ -803,7 +804,9 @@ void   os_free(void* ptr, size_t size);
 int    protect_page(void* ptr, size_t size);
 size_t page_size(void);
 ```
+
 The implementation is straightforward, put it in `src/platform.c`:
+
 ```c
 #include "platform.h"
 
@@ -1051,6 +1054,81 @@ int pool_free(pool_t* pool, void* ptr) {
 With this, we've successfully implemented the pool allocator, which we'll use in the later sections.
 
 For a more in-depth explanation of how allocators work, feel free to visit [this](https://github.com/nihiL7331/oo-alloc.git) repository.
+
+#### Stack allocation with guard pages
+
+In the Platform subsection, we handled the primitives: `os_alloc`, `protect_page`.
+For each thread we need a small recipe that combines them into a single 'usable stack' - the helper goes alongside the primitives in `platform.c`.
+
+But first, the scheduler needs to remember each stack's base so that later on it can clean up the threads from the dead queue.
+For that, each TCB will store an additional pointer - `bsp` (base stack pointer).
+Update the `tcb_t` struct in `src/tcb.h` like so:
+
+```c
+typedef struct tcb {
+  void*        rsp;   // the stack pointer
+  struct tcb*  next;  // intrusive next link for queue threading
+  thrd_state_t state; // current scheduler state
+  void*        bsp;   // base stack pointer
+} tcb_t;
+```
+
+Contrary to the saved stack pointer, `bsp` is an immutable base of the stack region.
+It'll be set once at creation, and used at destruction.
+
+With this, we can declare two new helpers in the `platform.h` file: `os_alloc_stack` and `os_free_stack`.
+
+```c
+void* os_alloc_stack(size_t usable_size);
+void  os_free_stack(void* base_ptr, size_t usable_size);
+```
+
+The implementation of both is straight-forward, it'll live in the `platform.c` file:
+
+```c
+void* os_alloc_stack(size_t usable_size) {
+  size_t total_size = usable_size + page_size(); // page_size for guard
+
+  void* ptr = os_alloc(total_size);
+  if (ptr == NULL)
+    return NULL;
+
+  if (protect_page(ptr, page_size()) != 0) {
+    os_free(ptr, total_size);
+    return NULL;
+  }
+
+  return ptr;
+}
+
+void os_free_stack(void* base_ptr, size_t usable_size) {
+  os_free(base_ptr, usable_size + page_size());
+}
+```
+
+It's also a good moment to move the `STACK_SIZE` macro from `tcb.c` to its own file.
+Let's create a new file, `internal.h`, and move it there:
+
+```c
+#pragma once
+
+#define STACK_SIZE 16384
+```
+
+<div align="center">
+  <picture>
+      <source media="(prefers-color-scheme: dark)"
+    srcset="docs/assets/guard_stack_dark.svg">
+      <source media="(prefers-color-scheme: light)"
+    srcset="docs/assets/guard_stack_light.svg">
+      <img alt="guard page stack layout" src="docs/assets/guard_stack_dark.svg">
+  </picture>
+
+  <p><em>Memory layout of a thread stack: <code>os_alloc_stack</code> returns the base; the guard page sits at the lowest address, rsp starts at the top and grows down into the usable region.</em></p>
+</div>
+
+Now `tcb_create`-equivalent code can ask for a stack with one call.
+The next subsection abstracts away the whole initialization - pool for the TCB, `os_alloc_stack` for the region, the fake frame written onto the top - into `thrd_create`.
 
 ---
 
