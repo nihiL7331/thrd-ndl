@@ -673,6 +673,90 @@ When `thrd_create` arrives, the implementation can change without callers caring
 
 With this in place, we have everything we need to put `thrd_init`, `thrd_yield`, and `thrd_register` together in a demo where worker functions no longer name each other.
 
+#### A scheduler-based demo
+
+With the additions made in this section, worker functions no longer have to name each other.
+The new functions call `thrd_yield` and have no idea who runs next.
+It's also worth pointing out that there's no `main_thrd` global variable needed, thanks to `thrd_init`.
+To set up each thread, we need two steps now: `tcb_init`, then `thrd_register`.
+This will be abstracted away via `thrd_create` in the next section, [Thread lifecycle](#thread-lifecycle).
+
+However, workers can't cleanly terminate yet. 
+After the loop, we increment a shared `completed` counter and enter `while (1) thrd_yield();`, yielding forever instead of returning.
+Returning would fall off the end of the function and segfault.
+This will be handled in the next section, [Thread lifecycle](#thread-lifecycle), with the addition of `thrd_exit`.
+
+Main's `while (completed < 2) thrd_yield();` is the same kind of stopgap on the other end.
+It blocks by yielding because there's no `thrd_join` yet implemented to make it sleep until workers finish.
+[Blocking primitives](#blocking-primitives) will implement that.
+
+```c
+#include <thrd_ndl/thrd_ndl.h>
+#include "scheduler.h"
+#include <stdio.h>
+
+static int completed = 0;
+
+static void func_a(void) {
+  for (int i = 0; i < 3; ++i) {
+    printf("A: %d\n", i);
+    thrd_yield();
+  }
+  completed++;
+
+  while (1)
+    thrd_yield(); // can't return yet - no 'thrd_exit'
+}
+
+static void func_b(void) {
+  for (int i = 0; i < 3; ++i) {
+    printf("B: %d\n", i);
+    thrd_yield();
+  }
+  completed++;
+
+  while (1)
+    thrd_yield();
+}
+
+int main(void) {
+  if (thrd_init() != THRD_SUCCESS)
+    return 1;
+
+  thrd_t thrd_a = tcb_init(func_a);
+  thrd_t thrd_b = tcb_init(func_b);
+  if (thrd_a == NULL || thrd_b == NULL)
+    return 1;
+
+  thrd_register(thrd_a);
+  thrd_register(thrd_b);
+
+  while (completed < 2)
+    thrd_yield();
+
+  printf("done\n");
+}
+```
+Including a scheduler-internal header from a demo is generally bad practice.
+We do that here, because `thrd_create` doesn't exist yet.
+
+Same as in the first section, to build and run the demo use:
+```bash
+cmake -B build && cmake --build build && ./build/demo
+```
+The expected output, also the same as with the first demo, is:
+```
+A: 0
+B: 0
+A: 1
+B: 1
+A: 2
+B: 2
+done
+```
+The next section will introduce `thrd_create` and `thrd_exit`, finishing the thread lifecycle.
+Beginning from the next section, the scheduler will have to handle a brand new queue: the dead queue.
+
 ---
 
 ## Roadmap
