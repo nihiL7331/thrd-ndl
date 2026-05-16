@@ -457,6 +457,8 @@ typedef struct tcb {
 
 We'll also need `enqueue`/`dequeue` helpers. These will live in the `src/scheduler.c`:
 ```c
+#include <stdlib.h> // include this for 'NULL' and later 'malloc'
+
 static inline void rdy_enqueue(tcb_t* thrd) {
   thrd->next = NULL;
   
@@ -541,8 +543,10 @@ Using the ready queue we laid foundations for, it will pick the next thread to r
 This function will end `curr_thrd`'s turn, and pick the head of the ready queue as the next running thread.
 If `curr_thrd` is the only ready thread, we switch to ourselves - it's a no-op, but it's harmless.
 In later sections, threads will sometimes yield without wanting to be re-queued (e.g. while sleeping). We'll restructure this then.
+Place this code in the `src/scheduler.c` file.
 ```c
-#include <assert.h> // include this!
+#include <assert.h>            // include this for 'assert'
+#include <thrd_ndl/thrd_ndl.h> // and this for 'thrd_switch'
 
 // ...
 
@@ -577,7 +581,7 @@ At the top of the `src/scheduler.c` file, you can now locally forward-declare `t
 ```c
 // static declarations ...
 
-extern void thrd_switch(tcb_t* old_tcb, tcb_t* new_tcb);
+extern void thrd_switch(tcb_t* old_tcb, tcb_t* new_tcb); // thrd_t -> tcb_t* !
 
 void thrd_yield(void) { /* ... */ }
 ```
@@ -618,8 +622,6 @@ int thrd_init(void);
 ```
 We'll implement it in the `src/scheduler.c` file.
 ```c
-#include <stdlib.h> // include this!
-
 int thrd_init(void) {
   // if the thread is already initialized, just return
   if (curr_thrd != NULL)
