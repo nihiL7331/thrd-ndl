@@ -40,12 +40,12 @@
     note: sym.arrow.b + " grows down",
     height: 120pt,
   ),
-  align(left + top, text(size: 10pt, fill: col-ptr)[top \
+  align(left + top, text(size: 10pt, fill: col-ptr)[#sym.arrow.l top \
     (rsp starts here)]),
 
   [],
   slot(col-guard, "GUARD PAGE", note: "PROT_NONE"),
-  align(left + top, text(size: 10pt, fill: col-ptr)[base \
+  align(left + top, text(size: 10pt, fill: col-ptr)[#sym.arrow.l base \
     (ret by os_alloc_stack)]),
 
   [], [], text(size: 10pt, fill: col-ptr)[low addr \ #sym.arrow.b],
