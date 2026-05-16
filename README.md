@@ -838,17 +838,17 @@ void os_free(void* ptr, size_t size) {
   (void)size;
   VirtualFree(ptr, 0, MEM_RELEASE);
 #else
-  munmap(ptr, size);
+  munmap(ptr, align_to_page(size));
 #endif
 }
 
 int protect_page(void* ptr, size_t size) {
 #ifdef _WIN32
   DWORD old_prot = 0;
-  BOOL success = VirtualProtect(ptr, size, PAGE_NOACCESS, &old_prot);
+  BOOL success = VirtualProtect(ptr, align_to_page(size), PAGE_NOACCESS, &old_prot);
   return success ? 0 : -1;
 #else
-  return mprotect(ptr, size, PROT_NONE);
+  return mprotect(ptr, align_to_page(size), PROT_NONE);
 #endif
 }
 
