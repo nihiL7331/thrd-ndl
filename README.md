@@ -763,11 +763,11 @@ The complete code for this section lives in [layer2/](layer2/).
 
 ## Roadmap
 
-- [ ] Cover the Cooperative scheduling section of README implementation.
 - [ ] Cover the Thread lifecycle section of README implementation.
 - [ ] Cover the Blocking primitives section of README implementation.
 - [ ] Cover the Sleep and the heap section of README implementation.
 - [ ] Cover the Preemption section implementation in README.
+- [x] Cover the Cooperative scheduling section of README implementation.
 - [x] Cover the Context switching section of README implementation.
 - [x] Replace the sleep queue with a binary min-heap.
 - [x] Add a debugging `thrd_dump` method.
