@@ -641,6 +641,35 @@ int thrd_init(void) {
 We don't free the main thread's TCB, since it lives for the lifetime of the program.
 The pool allocator in [Thread lifecycle](#thread-lifecycle) will replace it anyway.
 
+#### Registering workers
+
+The main thread is initialized and `thrd_yield` knows the ready queue, but nothing currently puts threads onto it.
+There's one piece missing: getting workers onto the ready queue.
+That's why we need to add one more temporary function: `thrd_register`.
+In the [Thread lifecycle](#thread-lifecycle) section, we will replace this temporary solution with `thrd_create`, which will combine `tcb_init` and `thrd_register` into one call.
+
+Because it's temporary, let's place it in a new internal header, `src/scheduler.h`.
+```c
+#pragma once
+
+#include "tcb.h"
+
+void thrd_register(tcb_t* thrd);
+```
+Implementation lives in `src/scheduler.c`, below the queue helpers it wraps.
+```c
+void thrd_register(tcb_t* thrd) {
+  if (thrd == NULL)
+    return;
+
+  rdy_enqueue(thrd);
+}
+```
+We wrap `rdy_enqueue` instead of exposing it directly because the wrapper names what the caller wants to do (register a thread) without forcing them to know how it's implemented (push to the ready queue).
+When `thrd_create` arrives, the implementation can change without callers caring.
+
+With this in place, we have everything we need to put `thrd_init`, `thrd_yield`, and `thrd_register` together in a demo where worker functions no longer name each other.
+
 ---
 
 ## Roadmap
