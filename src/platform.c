@@ -103,6 +103,25 @@ size_t page_size(void) {
   return cached_page_size;
 }
 
+void* os_alloc_stack(size_t usable_size) {
+  size_t total_size = usable_size + page_size(); // page_size for guard
+
+  void* ptr = os_alloc(total_size);
+  if (ptr == NULL)
+    return NULL;
+
+  if (protect_page(ptr, page_size()) != 0) {
+    os_free(ptr, total_size);
+    return NULL;
+  }
+
+  return ptr;
+}
+
+void os_free_stack(void* base_ptr, size_t usable_size) {
+  os_free(base_ptr, usable_size + page_size());
+}
+
 void preempt_disable(void) {
 #ifdef _WIN32
   preempt_cnt++;

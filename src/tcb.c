@@ -42,22 +42,14 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   // get size + one page for stack overflow safety
   // page alignment is handled in platform.c internally
   // if the bottom page ever is touched, it will just seg fault
+  tcb->bsp = os_alloc_stack(THRD_STACK_SIZE);
+  if (tcb->bsp == NULL) {
+    tcb_destroy(tcb);
+    return NULL;
+  }
+
   size_t size = THRD_STACK_SIZE + page_size();
-  void* stack_ptr = os_alloc(size);
-  if (stack_ptr == NULL) {
-    tcb_destroy(tcb);
-    return NULL;
-  }
-
-  // protect the bottom page
-  if (protect_page(stack_ptr, page_size()) != 0) {
-    tcb_destroy(tcb);
-    os_free(stack_ptr, size);
-    return NULL;
-  }
-
-  tcb->bsp = stack_ptr;
-  tcb->rsp = (uint8_t*)stack_ptr + size;
+  tcb->rsp = (uint8_t*)tcb->bsp + size;
 
   tcb->join_queue_hd = NULL;
   tcb->join_queue_tl = NULL;
@@ -115,6 +107,7 @@ void tcb_destroy(tcb_t* tcb) {
   if (tcb == NULL || !pool_init)
     return;
 
+  os_free_stack(tcb->bsp, THRD_STACK_SIZE);
   pool_free(&tcb_pool, (void*)tcb);
 }
 

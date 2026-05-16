@@ -47,10 +47,7 @@ void thrd_yield(void) {
         prev_dead->next = curr_dead->next;
       curr_dead = curr_dead->next;
 
-      // free the dead threads stack
-      os_free(dead_thrd->bsp, THRD_STACK_SIZE + page_size());
-
-      // free the thread struct
+      // free the tcb
       tcb_destroy(dead_thrd);
     }
   }
