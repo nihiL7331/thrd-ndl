@@ -118,9 +118,10 @@ While reading the said implementation section, you might return quite often to t
 Functions that return `int` use these codes:
 
 * `THRD_SUCCESS` - operation completed successfully (always `0`).
-* `THRD_ENOMEM` - out of capacity (pool exhausted, heap full, OS alloc fail).
-* `THRD_EINVAL` - invalid argument (`NULL` ptr, zero size, etc.).
-* `THRD_EBUSY` - resource is held by another thread.
+* `THRD_ENOMEM`  - out of capacity (pool exhausted, heap full, OS alloc fail).
+* `THRD_EINVAL`  - invalid argument (`NULL` ptr, zero size, etc.).
+* `THRD_EBUSY`   - resource is held by another thread.
+* `THRD_EUNINIT` - passed argument is storing an unitialized struct.
 
 ### Threads
 
