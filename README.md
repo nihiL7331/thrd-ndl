@@ -303,12 +303,12 @@ extern void thrd_switch(thrd_t old_tcb, thrd_t new_tcb);
 #endif // THRD_NDL_H
 ```
 `thrd_switch` is really an internal primitive.
-Starting from the section [Cooperative scheduling](#cooperative-scheduling) (WIP), this will be abstracted away via `thrd_yield`.
+Starting from the section [Cooperative scheduling](#cooperative-scheduling), this will be abstracted away via `thrd_yield`.
 For now, we'll invoke it manually.
 
 #### Thread initialization
 
-Similarly, `tcb_init` will become an internal primitive starting from the section [Thread lifecycle](#thread-lifecycle) (also WIP).
+Similarly, `tcb_init` will become an internal primitive starting from the section [Thread lifecycle](#thread-lifecycle) (WIP).
 Now we need to handle the thread initialization, so that `thrd_switch` works properly.
 Create the file `tcb.c`.
 It will handle the initialization of the TCB.
@@ -568,6 +568,19 @@ In this section the ready queue can't be empty after the enqueue above, since `c
 When we add more states like `BLOCKED`, `SLEEPING` or `DEAD`, we'll revisit this branch and handle it correctly.
 
 When this thread is later rescheduled, `thrd_switch` returns into the middle of `thrd_yield`, which then returns to whoever called it - exactly as if the function has paused and resumed.
+
+#### Making `thrd_switch` internal
+
+Back in [Context switching](#context-switching), we noted that `thrd_switch` will eventually become internal. With `thrd_yield` now wrapping it, we can deliver on that promise.
+Remove the `thrd_switch` declaration from `include/thrd_ndl/thrd_ndl.h`.
+At the top of the `src/scheduler.c` file, you can now locally forward-declare `thrd_switch`:
+```c
+// static declarations ...
+
+extern void thrd_switch(tcb_t* old_tcb, tcb_t* new_tcb);
+
+void thrd_yield(void) { /* ... */ }
+```
 
 #### `thrd_init`
 
