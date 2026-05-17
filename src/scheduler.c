@@ -124,9 +124,6 @@ int thrd_init(void) {
 
   // make a dummy thread
   tcb_t* init_thrd = tcb_alloc();
-  init_thrd->bsp = NULL;
-  init_thrd->rsp = NULL;
-  init_thrd->next = NULL;
   init_thrd->state = THRD_RUNNING;
 
   curr_thrd = init_thrd;
