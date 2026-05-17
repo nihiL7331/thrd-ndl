@@ -120,18 +120,6 @@ tcb_t* tcb_alloc(void) {
   return tcb;
 }
 
-int tcb_pool_init(void) {
-  if (!pool_init) {
-    int ret_val = pool_new(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t), POOL_THRD_CNT);
-    if (ret_val == THRD_SUCCESS)
-      pool_init = 1;
-
-    return ret_val;
-  }
-
-  return THRD_SUCCESS;
-}
-
 const char* state_to_str(thrd_state_t state) {
   switch (state) {
   case THRD_READY:
@@ -168,4 +156,23 @@ void tcb_dump_one(tcb_t* tcb) {
   );
   if (tcb->state == THRD_SLEEPING)
     fprintf(stderr, "wakeup time: %"PRIu64"\n", tcb->wakeup_time);
+}
+
+int tcb_pool_init(void) {
+  if (!pool_init) {
+    int ret_val = pool_new(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t), POOL_THRD_CNT);
+    if (ret_val == THRD_SUCCESS)
+      pool_init = 1;
+
+    return ret_val;
+  }
+
+  return THRD_SUCCESS;
+}
+
+void tcb_pool_destroy(void) {
+  if (pool_init) {
+    pool_destroy(&tcb_pool);
+    pool_init = 0;
+  }
 }
