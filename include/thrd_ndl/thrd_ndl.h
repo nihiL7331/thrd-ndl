@@ -2,6 +2,7 @@
 #define THRD_NDL_H
 
 #include <stdint.h>
+#include <stdnoreturn.h>
 
 // return codes
 #define THRD_SUCCESS     0
@@ -24,7 +25,7 @@ typedef struct {
   void* block_queue_tl;
 } cond_t;
 
-void thrd_exit(void);
+noreturn void thrd_exit(void);
 void thrd_yield(void);
 int  thrd_init(void);
 int  thrd_create(thrd_t* out_thread, void (*func)(void));

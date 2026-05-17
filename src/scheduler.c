@@ -185,6 +185,8 @@ void thrd_exit(void) {
   preempt_enable();
   
   thrd_yield();
+
+  abort();
 }
 
 void thrd_join(thrd_t thread) {
