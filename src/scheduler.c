@@ -122,8 +122,11 @@ int thrd_init(void) {
   if (heap_ret_val != THRD_SUCCESS)
     return heap_ret_val;
 
-  // make a dummy thread
+  // create the main thread
   tcb_t* init_thrd = tcb_alloc();
+  if (init_thrd == NULL)
+    return THRD_ENOMEM;
+
   init_thrd->state = THRD_RUNNING;
 
   curr_thrd = init_thrd;
