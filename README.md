@@ -838,6 +838,9 @@ size_t page_size(void) {
   return cached_page_size;
 }
 ```
+
+Place `src/platform.c` in `CMakeLists.txt`.
+
 Callers don't have to think about page alignment - `os_alloc` handles it.
 With this implemented, we can now use it in the pool allocator.
 
@@ -882,7 +885,7 @@ For this implementation we'll need one new return code in `include/thrd_ndl/thrd
 #define THRD_EUNINIT 3
 ```
 
-We'll also need those includes in the `src/pool.c` file:
+We'll also need those includes in the newly created `src/pool.c` file:
 
 ```c
 #include "pool.h"
@@ -890,6 +893,8 @@ We'll also need those includes in the `src/pool.c` file:
 #include <thrd_ndl/thrd_ndl.h> // for return codes
 #include <stdint.h>
 ```
+
+While we're at it, add `src/pool.c` to `CMakeLists.txt`.
 
 Now, let's go step by step, implementing every function declared in the header.
 
