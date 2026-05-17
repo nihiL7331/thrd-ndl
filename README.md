@@ -1494,6 +1494,80 @@ The dead queue is now self-draining.
 `thrd_exit` is responsible for enqueueing, `thrd_yield` for clearing.
 With this in place, the next subsection can finally show worker functions returning naturally - the implicit-exit path, the dead queue, and the cleanup loop together let workers come and go without leaks.
 
+#### A lifecycle-aware demo
+
+This section got rid of most of the hacks present in the last demo.
+Going through the last demo, we had:
+- `while (1) thrd_yield();` after each thread's loop - removed. Workers now `return` normally, using the implicit-exit trick from the [`thrd_exit` and the dead queue](#thrd_exit-and-the-dead-queue) subsection.
+- `tcb_init(func_a); thrd_register(thrd_a)` replaced with `thrd_create` from [`thrd_create`](#thrd_create).
+- `while (completed < 2) thrd_yield();` - this will be solved in the next section, [Blocking primitives](#blocking-primitives).
+The demo now uses only the public API, and worker functions look like normal C.
+
+```c
+#include <stdio.h>
+#include <thrd_ndl/thrd_ndl.h>
+
+static int completed = 0;
+
+static void func_a(void) {
+  for (int i = 0; i < 3; ++i) {
+    printf("A: %d\n", i);
+    thrd_yield();
+  }
+  completed++;
+  // returning here triggers thrd_exit implicitly
+}
+
+static void func_b(void) {
+  for (int i = 0; i < 3; ++i) {
+    printf("B: %d\n", i);
+    thrd_yield();
+  }
+  completed++;
+}
+
+int main(void) {
+  if (thrd_init() != THRD_SUCCESS)
+    return 1;
+
+  thrd_t thrd_a, thrd_b;
+  if (thrd_create(&thrd_a, func_a) != THRD_SUCCESS)
+    return 1;
+  if (thrd_create(&thrd_b, func_b) != THRD_SUCCESS)
+    return 1;
+
+  while (completed < 2)
+    thrd_yield();
+
+  printf("done\n");
+}
+```
+
+Build and run the same way as before:
+
+```bash
+cmake -B build && cmake --build build && ./build/demo
+```
+
+Expected output - same as in the previous demo:
+
+```bash
+A: 0
+B: 0
+A: 1
+B: 1
+A: 2
+B: 2
+done
+```
+
+Notice, that now when `func_a` falls off the end, its `ret` pops `thrd_exit`'s address from the padding slot.
+`thrd_exit` marks the threads state as `THRD_DEAD`, pushes it onto the dead queue, and yields.
+The yield's cleanup loop skips the just-exited thread (it's still `curr_thrd`), but the next yield by another thread removes it.
+Threads are freed one yield after they exit.
+
+The complete code for this section lives in [tutorial/section3/](tutorial/section3/).
+
 ### Porting
 
 #### Windows
