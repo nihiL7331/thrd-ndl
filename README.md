@@ -1382,6 +1382,106 @@ void thrd_yield(void) {
 This also creates new edge-cases, where the ready queue is empty.
 They will be handled in the next subsection.
 
+#### Cleaning up dead threads
+
+`thrd_exit` places dying threads on the dead queue, but never frees them.
+This subsection adds the cleanup pass that clears the queue, freeing each dead thread's stack and returning its TCB to the pool.
+
+We want to free each thread from the dead queue as early as possible.
+From the last subsection we already know that a dying thread can't clear itself, since its stack is still in use.
+That means that the clear has to be on top of `thrd_yield`, with a check `if (curr_dead != curr_thrd)`.
+
+Let's look at a example of how this behaves, step by step:
+1. Thread A calls `thrd_exit` -> A gets pushed onto `dead_queue`, A yields.
+2. Top of A's `thrd_yield`: cleanup sees `thrd_a == curr_thrd`, skips it.
+3. State guard skips re-enqueue (since `thrd_a->state == THRD_DEAD`).
+4. Dequeue picks thread B. `thrd_switch(thrd_a, thrd_b)`.
+5. B runs, eventually yields. Top of B's `thrd_yield` cleans up A.
+
+So all we need to do is iterate over the dead queue and call `os_free_stack` then `tcb_free` on every entry.
+We can abstract it away to a helper - let's call it `tcb_destroy`.
+Declare it in `src/tcb.h`:
+
+```c
+void tcb_destroy(tcb_t* tcb);
+```
+
+And it will just call `os_free_stack` and `tcb_free` (in that order).
+Place it in `src/tcb.c`.
+
+```c
+void tcb_destroy(tcb_t* tcb) {
+  if (tcb == NULL)
+    return;
+ 
+  os_free_stack(tcb->bsp, THRD_STACK_SIZE);
+  tcb_free(&tcb_pool, (void*)tcb);
+}
+```
+
+If `thrd_exit` gets called on the main thread, since main's `bsp` is `NULL`, `os_free_stack` gets called with `NULL` as the first argument.
+It's safe, because `os_free` contains a `NULL`-check.
+
+With all of this settled down, let's add the loop on top of `thrd_yield` in `src/scheduler.c`:
+
+```c
+void thrd_yield(void) {
+  // stop the current thread from running
+  if (curr_thrd->state == THRD_RUNNING) {
+    curr_thrd->state = THRD_READY;
+    rdy_enqueue(curr_thrd);
+  }
+
+  tcb_t* prev_dead = NULL;
+  tcb_t* curr_dead = dead_queue_hd;
+
+  while (curr_dead != NULL) {
+    if (curr_dead == curr_thrd) {
+      prev_dead = curr_dead;
+      curr_dead = curr_dead->next;
+    } else {
+      tcb_t* dead_thrd = curr_dead;
+
+      // remove from queue
+      // must save next before destroy,
+      // pool_free overwrites the tcb
+      if (prev_dead == NULL)
+        dead_queue_hd = curr_dead->next; 
+      else
+        prev_dead->next = curr_dead->next;
+      curr_dead = curr_dead->next;
+
+      // free the tcb
+      tcb_destroy(dead_thrd);
+    }
+  }
+
+  // ...
+}
+```
+
+One important detail is that `tcb_free` will overwrite the TCB, so we need to store its `->next` pointer before destroying.
+
+Before, we said that we'll handle the `next_thrd != NULL` assertion in `thrd_yield`.
+Now we'll replace it with a more nuanced check:
+* If `next_thrd == NULL` and `curr_thrd->state == THRD_DEAD`, then every thread is gone - exit the program normally.
+* If `next_thrd == NULL` and `curr_thrd` is in some other non-`THRD_RUNNING` state, then something has gone wrong.
+To exit the program, we'll use `_exit` instead of `exit`.
+[`_exit`](https://stackoverflow.com/questions/57161596/how-to-use-exit-safely-from-any-thread) skips `atexit` handlers and `stdio` buffer flushing, and we want a clean process exit without running cleanup code on a stack we're about to discard.
+
+So, replace `assert (next_thrd != NULL)` in `thrd_yield` with this:
+
+```c
+if (next_thrd == NULL && curr_thrd->state == THRD_DEAD)
+  _exit(0);
+else if (next_thrd == NULL && curr_thrd->state != THRD_RUNNING)
+  _exit(1);
+```
+
+The dead queue is now self-draining.
+`thrd_exit` is responsible for enqueueing, `thrd_yield` for clearing.
+With this in place, the next subsection can finally show worker functions returning naturally - the implicit-exit path, the dead queue, and the cleanup loop together let workers come and go without leaks.
+
 ### Porting
 
 #### Windows
