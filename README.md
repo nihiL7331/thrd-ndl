@@ -779,7 +779,7 @@ Consider the thread's behavior if we used `malloc` to allocate the stack.
 When a thread's stack grows past its allocated size, e.g. via deep recursion, it'll silently overwrite adjacent memory unless something stops it.
 A guard page is that something: a page marked unreadable, placed immediately past the end the stack would grow into.
 Any access to it segfaults.
-POSIX exposes two functions that solve this: `mmap` and `mprotect`. Their Windows counterparts are `VirtualAlloc` and `VirtualProtect`.
+POSIX exposes two functions that solve this: `mmap` and `mprotect`.
 `mmap` allows us to ask for a page of memory directly.
 `mprotect` allows us to 'protect' a certain memory page - causing any access to this memory to result in a segmentation fault.
 
@@ -806,14 +806,8 @@ The implementation is straightforward, put it in `src/platform.c`:
 
 ```c
 #include "platform.h"
-
-#ifdef _WIN32
-  #define NOMINMAX
-  #include <windows.h>
-#else
-  #include <sys/mman.h>
-  #include <unistd.h>
-#endif
+#include <sys/mman.h>
+#include <unistd.h>
 
 static inline size_t align_to_page(size_t size) {
   size_t p_size = page_size();
@@ -821,48 +815,26 @@ static inline size_t align_to_page(size_t size) {
 }
 
 void* os_alloc(size_t size) {
-#ifdef _WIN32
-  void* ptr = VirtualAlloc(NULL, align_to_page(size), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-  return ptr;
-#else
   void* ptr = mmap(NULL, align_to_page(size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
   return (ptr == MAP_FAILED) ? NULL : ptr;
-#endif
 }
 
 void os_free(void* ptr, size_t size) {
   if (ptr == NULL) 
     return;
 
-#ifdef _WIN32
-  (void)size;
-  VirtualFree(ptr, 0, MEM_RELEASE);
-#else
   munmap(ptr, align_to_page(size));
-#endif
 }
 
 int protect_page(void* ptr, size_t size) {
-#ifdef _WIN32
-  DWORD old_prot = 0;
-  BOOL success = VirtualProtect(ptr, align_to_page(size), PAGE_NOACCESS, &old_prot);
-  return success ? 0 : -1;
-#else
   return mprotect(ptr, align_to_page(size), PROT_NONE);
-#endif
 }
 
 size_t page_size(void) {
   static size_t cached_page_size = 0;
-  if (cached_page_size == 0) {
-#ifdef _WIN32
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    cached_page_size = (size_t)sysInfo.dwPageSize;
-#else
+  if (cached_page_size == 0)
     cached_page_size = (size_t)sysconf(_SC_PAGESIZE);
-#endif
-  }
+
   return cached_page_size;
 }
 ```
