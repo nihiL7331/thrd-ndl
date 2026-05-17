@@ -1099,6 +1099,172 @@ Let's create a new file, `internal.h`, and move it there:
 Now `tcb_create`-equivalent code can ask for a stack with one call.
 The next subsection abstracts away the whole initialization - pool for the TCB, `os_alloc_stack` for the region, the fake frame written onto the top - into `thrd_create`.
 
+#### `thrd_create`
+
+We have all the pieces - pool allocator for TCBs, `os_alloc_stack` for stacks.
+This subsection combines them into `thrd_create` and retires `tcb_init` as a public API and `thrd_register` as a temporary.
+
+We'll start off with reworking `tcb_init` to use the new allocators.
+We will store our pool allocator as a static variable inside `src/tcb.c`.
+But first we need to initialize the pool allocator.
+To initialize it, we will expose an internal `tcb_pool_init` function that will be called by `thrd_init`.
+Let's declare the function in the header, `src/tcb.h`:
+
+```c
+int  tcb_pool_init(void);
+```
+
+We will also add a proper thread count macro, place it in `src/internal.h`:
+
+```c
+#define POOL_THRD_CNT 1024
+```
+
+Then we can implement the helpers inside `src/tcb.c`:
+
+```c
+#include "pool.h"
+#include "internal.h"
+
+static pool_t tcb_pool = {0};
+
+// tcb_init ...
+
+int tcb_pool_init(void) {
+  return pool_new(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t), POOL_THRD_CNT);
+}
+```
+
+Now we can update `thrd_init` to initialize the pool in `src/scheduler.c` (the complete `thrd_init` after the rework is shown below):
+
+```c
+int thrd_init(void) {
+  // if-check ...
+
+  int pool_ret_val = tcb_pool_init();
+  if (pool_ret_val != THRD_SUCCESS)
+    return pool_ret_val;
+
+  // main thread initialization ...
+}
+```
+
+But notice, `thrd_init` also uses `malloc` to allocate memory for the main thread's TCB.
+To replace it cleanly, we'll add two more pool-related helpers in `src/tcb.h`: let's call them `tcb_alloc` and `tcb_free`:
+
+```c
+tcb_t* tcb_alloc(void);
+void   tcb_free(tcb_t* tcb);
+```
+
+The implementation in `src/tcb.c` is straight-forward:
+
+```c
+#include <string.h> // include this for 'memset'
+
+tcb_t* tcb_alloc(void) {
+  tcb_t* tcb = pool_alloc(&tcb_pool);
+  if (tcb == NULL)
+    return NULL;
+
+  memset(tcb, 0, sizeof(tcb_t));
+  return tcb;
+}
+
+void tcb_free(tcb_t* tcb) {
+  if (tcb == NULL)
+    return;
+
+  pool_free(&tcb_pool, tcb);
+}
+```
+
+Now the fully updated `thrd_init` looks like so:
+
+```c
+int thrd_init(void) {
+  // if the thread is already initialized, just return
+  if (curr_thrd != NULL)
+    return THRD_EINVAL;
+
+  int pool_ret_val = tcb_pool_init();
+  if (pool_ret_val != THRD_SUCCESS)
+    return pool_ret_val;
+
+  tcb_t* init_thrd = tcb_alloc();
+  if (init_thrd == NULL)
+    return THRD_ENOMEM;
+
+  // tcb_alloc zeroed every field
+  init_thrd->state = THRD_RUNNING;
+
+  curr_thrd = init_thrd;
+
+  return THRD_SUCCESS;
+}
+```
+
+Finally, we can update `tcb_init` as well:
+
+```c
+thrd_t tcb_init(void (*entry)(void)) {
+  tcb_t* tcb = tcb_alloc();
+  if (tcb == NULL)
+    return NULL;
+
+  tcb->bsp = os_alloc_stack(THRD_STACK_SIZE);
+  if (tcb->bsp == NULL) {
+    tcb_free(tcb);
+    return NULL;
+  }
+
+  size_t size  = THRD_STACK_SIZE + page_size();
+  uint64_t* sp = (uint64_t*)((uint8_t*)tcb->bsp + size);
+
+  *(--sp) = 0;               // padding for ABI alignment
+  *(--sp) = (uint64_t)entry; // fake return address for 'ret'
+  sp     -= CALLEE_REG_CNT;  // space for callee-saved registers
+
+  tcb->rsp   = sp;
+  tcb->state = THRD_READY;
+  return tcb;
+}
+```
+
+We'll change the padding slot's value in the next subsection, [`thrd_exit` and the dead queue](#thrd_exit-and-the-dead-queue).
+
+Now we'll retire `thrd_register` (the temporary helper) and demote `tcb_init` to internal-only, both replaced from the user's perspective by `thrd_create`.
+Its purpose will be to initialize the TCB and enqueue it onto the ready queue.
+First, let's declare it in `include/thrd_ndl/thrd_ndl.h`:
+
+```c
+int thrd_create(thrd_t* out_thread, void (*func)(void));
+```
+
+Its implementation will live in `src/scheduler.c`:
+
+```c
+int thrd_create(thrd_t* out_thread, void (*func)(void)) {
+  if (out_thread == NULL || func == NULL)
+    return THRD_EINVAL;
+
+  tcb_t* new_thrd = tcb_init(func);
+  if (new_thrd == NULL)
+    return THRD_ENOMEM;
+
+  // pass the address to the pointer given by the user
+  *out_thread = (thrd_t)new_thrd;
+
+  // push to ready queue
+  rdy_enqueue(new_thrd);
+
+  return THRD_SUCCESS;
+}
+```
+
+Now we can move `tcb_init` declaration from `include/thrd_ndl/thrd_ndl.h` to `tcb.h`.
+Since `src/scheduler.h` only contained `thrd_register`, the file can be deleted entirely.
+
 ### Porting
 
 #### Windows
