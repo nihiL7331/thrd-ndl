@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define STACK_SIZE 16384
+#define THRD_STACK_SIZE 16384
 #define CALLEE_REG_CNT 6
 
 thrd_t tcb_init(void (*entry)(void)) {
@@ -11,13 +11,13 @@ thrd_t tcb_init(void (*entry)(void)) {
   if (tcb == NULL)
     return NULL;
 
-  uint8_t* stack = (uint8_t*)malloc(STACK_SIZE);
+  uint8_t* stack = (uint8_t*)malloc(THRD_STACK_SIZE);
   if (stack == NULL) {
     free(tcb);
     return NULL;
   }
   // stack pointer is at the top of the stack
-  uint64_t* sp  = (uint64_t*)(stack + STACK_SIZE);
+  uint64_t* sp  = (uint64_t*)(stack + THRD_STACK_SIZE);
 
   *(--sp) = 0;               // padding for ABI alignment
   *(--sp) = (uint64_t)entry; // fake return address for 'ret'
