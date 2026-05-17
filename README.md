@@ -1551,7 +1551,7 @@ cmake -B build && cmake --build build && ./build/demo
 
 Expected output - same as in the previous demo:
 
-```bash
+```
 A: 0
 B: 0
 A: 1
