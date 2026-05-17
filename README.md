@@ -1265,6 +1265,123 @@ int thrd_create(thrd_t* out_thread, void (*func)(void)) {
 Now we can move `tcb_init` declaration from `include/thrd_ndl/thrd_ndl.h` to `tcb.h`.
 Since `src/scheduler.h` only contained `thrd_register`, the file can be deleted entirely.
 
+#### `thrd_exit` and the dead queue
+
+`thrd_exit` cleanly retires the current thread.
+It marks it as finished, hands control to the scheduler, and never returns to the caller.
+It's what the demo in [Cooperative scheduling](#cooperative-scheduling) tried to achieve with `while (1) thrd_yield();`, and what the `tcb_init` padding slot has been waiting to point at.
+
+The intuition is simple.
+`thrd_exit` frees the dying thread's TCB (back to the pool) and its stack (via `os_free_stack`), then yields.
+But there's a problem with the second step.
+
+`thrd_exit` runs on the dying thread's stack. Calling `os_free_stack` on the very stack we're executing from unmaps the memory we're actively accessing.
+The next instruction would read from a freed page and segfault.
+
+So the freeing has to happen later, when some other thread is running.
+The dying thread enqueues its TCB on a dead queue, yields away, and another thread does the cleanup once it's safe.
+This subsection will implement the "enqueueing threads to the dead queue" part.
+
+We start off with adding a new enum value to `thrd_state_t` in `src/tcb.h`:
+
+```c
+typedef enum {
+  // ... other values
+  THRD_DEAD,
+} thrd_state_t;
+```
+
+We need to add a static dead queue in `scheduler.c`:
+
+```c
+static tcb_t* dead_queue_hd = NULL;
+```
+
+Notice we don't need the queue's tail here, because on each yield we will just clean out the whole queue.
+Now, let's handle the `thrd_exit` itself.
+Declare it in the public header, `include/thrd_ndl/thrd_ndl.h`:
+
+```c
+#include <stdnoreturn.h> // include this for 'noreturn'
+
+// ...
+
+noreturn void thrd_exit(void);
+```
+
+The implementation will do three things:
+1. Set `curr_thrd->state` to `THRD_DEAD`.
+2. Push `curr_thrd` onto `dead_queue_hd`.
+3. Call `thrd_yield`.
+`thrd_yield` never returns - the dying thread is dead, so the updated yield (below) won't re-enqueue it, and the context switch hands control to someone else permanently.
+That's why it uses the `noreturn` keyword.
+
+```c
+#include <stdnoreturn.h> // include this for 'noreturn'
+
+noreturn void thrd_exit(void) {
+  curr_thrd->state = THRD_DEAD;
+
+  curr_thrd->next = dead_queue_hd;
+  dead_queue_hd = curr_thrd;
+
+  thrd_yield();
+
+  abort(); 
+}
+```
+
+`thrd_yield` returns for non-dying threads, so the compiler can't infer that this call never returns here.
+The `abort` satisfies the `noreturn` requirements, silencing the error with the `-Werror` flag.
+
+Now, we can apply the implicit `thrd_exit` call in `tcb_init`.
+Update `tcb_init`'s fake-frame setup. We just need to place `thrd_exit` where the padding was.
+
+```c
+tcb_t* tcb_init(void (*entry)(void)) {
+  // ...
+  *(--sp) = (uint64_t)thrd_exit; // was: *(--sp) = 0;
+  // ...
+}
+```
+
+Let's look how the frame behaves now:
+1. `thrd_switch` into the thread.
+2. `ret` pops `entry`'s address.
+3. Execution lands in the worker function.
+4. Worker function returns.
+5. Its `ret` pops the next thing on the stack: `thrd_exit`'s address.
+6. Control falls into `thrd_exit` automatically.
+
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/updated_stack_dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/updated_stack_light.svg">
+    <img alt="fake stack" src="docs/assets/updated_stack_dark.svg">
+  </picture>
+
+  <p><em>The updated fake initial stack frame written by <code>tcb_init</code>. It falls into the <code>thrd_exit</code> implicitly.</em></p>
+</div>
+
+Now let's take a look at `thrd_yield`.
+As of now, we unconditionally re-enqueue `curr_thrd`.
+However, it might be dead.
+Re-enqueuing it would break the invariant we've pointed out a while back: a thread can be on one queue at a time.
+That's why we just need to check, if `curr_thrd` is actually running:
+
+```c
+void thrd_yield(void) {
+  if (curr_thrd->state == THRD_RUNNING) {
+    curr_thrd->state = THRD_READY;
+    rdy_enqueue(curr_thrd);
+  }
+  // ...
+}
+```
+
+This also creates new edge-cases, where the ready queue is empty.
+They will be handled in the next subsection.
+
 ### Porting
 
 #### Windows
