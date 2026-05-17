@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <stdnoreturn.h>
 #include "internal.h"
 #include "platform.h"
 #include "tcb.h"
@@ -160,7 +161,7 @@ int thrd_create(thrd_t* out_thread, void (*func)(void)) {
   return THRD_SUCCESS;
 }
 
-void thrd_exit(void) {
+noreturn void thrd_exit(void) {
   preempt_disable();
 
   // make the exiting thread dead
