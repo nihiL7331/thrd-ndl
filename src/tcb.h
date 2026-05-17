@@ -34,4 +34,3 @@ tcb_t* tcb_alloc(void);
 void   tcb_dump_one(tcb_t* tcb);
 
 int    tcb_pool_init(void);
-void   tcb_pool_destroy(void);

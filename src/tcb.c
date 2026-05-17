@@ -24,7 +24,6 @@
 #endif
 
 static pool_t tcb_pool = {0};
-static int pool_init = 0;
 
 // a wrapper for thread procedure call
 static void tcb_wrap(void) {
@@ -104,7 +103,7 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
 }
 
 void tcb_destroy(tcb_t* tcb) {
-  if (tcb == NULL || !pool_init)
+  if (tcb == NULL)
     return;
 
   os_free_stack(tcb->bsp, THRD_STACK_SIZE);
@@ -159,20 +158,5 @@ void tcb_dump_one(tcb_t* tcb) {
 }
 
 int tcb_pool_init(void) {
-  if (!pool_init) {
-    int ret_val = pool_new(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t), POOL_THRD_CNT);
-    if (ret_val == THRD_SUCCESS)
-      pool_init = 1;
-
-    return ret_val;
-  }
-
-  return THRD_SUCCESS;
-}
-
-void tcb_pool_destroy(void) {
-  if (pool_init) {
-    pool_destroy(&tcb_pool);
-    pool_init = 0;
-  }
+  return pool_new(&tcb_pool, sizeof(tcb_t), _Alignof(tcb_t), POOL_THRD_CNT);
 }
