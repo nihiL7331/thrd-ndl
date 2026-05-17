@@ -28,6 +28,7 @@
   - [Blocking primitives](#blocking-primitives)
   - [Sleep and the heap](#sleep-and-the-heap)
   - [Preemption](#preemption)
+  - [Porting](#porting)
 - [Roadmap](#roadmap)
 - [Sources](#sources)
 
@@ -167,11 +168,7 @@ The final code can be found in the [src/](src/) directory.
 Each section has its source code in the corresponding `layerX` directory.
 
 This entire section will use `x86_64` as the primary example, with the `ARM64` covered at the end.
-
-Windows support uses `VirtualAlloc`-backed stacks and hand-written assembly switches, like the Linux path.
-However on Windows, the OS tracks the current stack via the [Thread Information Block](https://en.wikipedia.org/wiki/Win32_Thread_Information_Block), which this implementation doesn't update.
-Because of that, large stack frames (which trigger `__chkstk`), structured exception handling, and some CRT functions may misbehave on worker threads.
-There are ways to solve that issue: Windows [Fibers](https://learn.microsoft.com/en-us/windows/win32/procthread/fibers), or manual TIB updates, but they are out of scope for this tutorial.
+Similarly, it targets Linux/macOS, the (limited) Windows port is covered at the end, both in the [Porting](#porting) section.
 
 ### Build setup
 
@@ -1130,6 +1127,17 @@ Let's create a new file, `internal.h`, and move it there:
 Now `tcb_create`-equivalent code can ask for a stack with one call.
 The next subsection abstracts away the whole initialization - pool for the TCB, `os_alloc_stack` for the region, the fake frame written onto the top - into `thrd_create`.
 
+### Porting
+
+#### Windows
+
+Windows support uses `VirtualAlloc`-backed stacks and hand-written assembly switches, like the Linux path.
+However on Windows, the OS tracks the current stack via the [Thread Information Block](https://en.wikipedia.org/wiki/Win32_Thread_Information_Block), which this implementation doesn't update.
+Because of that, large stack frames (which trigger `__chkstk`), structured exception handling, and some CRT functions may misbehave on worker threads.
+There are ways to solve that issue: Windows [Fibers](https://learn.microsoft.com/en-us/windows/win32/procthread/fibers), or manual TIB updates, but they are out of scope for this tutorial.
+
+#### ARM64
+
 ---
 
 ## Roadmap
@@ -1138,6 +1146,7 @@ The next subsection abstracts away the whole initialization - pool for the TCB, 
 - [ ] Cover the Blocking primitives section of README implementation.
 - [ ] Cover the Sleep and the heap section of README implementation.
 - [ ] Cover the Preemption section implementation in README.
+- [ ] Cover the Porting section implementation in README.
 - [x] Cover the Cooperative scheduling section of README implementation.
 - [x] Cover the Context switching section of README implementation.
 - [x] Replace the sleep queue with a binary min-heap.
