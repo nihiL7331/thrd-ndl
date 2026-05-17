@@ -1075,14 +1075,16 @@ void os_free_stack(void* base_ptr, size_t usable_size) {
 }
 ```
 
-It's also a good moment to move the `THRD_STACK_SIZE` macro from `tcb.c` to its own file.
-Let's create a new file, `internal.h`, and move it there:
+It's also a good moment to move the `THRD_STACK_SIZE` macro from `src/tcb.c` to its own file.
+Let's create a new file, `src/internal.h`, and move it there:
 
 ```c
 #pragma once
 
 #define THRD_STACK_SIZE 16384
 ```
+
+Don't forget to include `src/internal.h` in `src/tcb.c`.
 
 <div align="center">
   <picture>
@@ -1124,7 +1126,6 @@ Then we can implement the helpers inside `src/tcb.c`:
 
 ```c
 #include "pool.h"
-#include "internal.h"
 
 static pool_t tcb_pool = {0};
 
@@ -1207,6 +1208,8 @@ int thrd_init(void) {
 Finally, we can update `tcb_init` as well:
 
 ```c
+#include "platform.h" // include this for 'os_alloc_stack' and 'page_size'
+
 thrd_t tcb_init(void (*entry)(void)) {
   tcb_t* tcb = tcb_alloc();
   if (tcb == NULL)
@@ -1238,17 +1241,17 @@ Its purpose will be to initialize the TCB and enqueue it onto the ready queue.
 First, let's declare it in `include/thrd_ndl/thrd_ndl.h`:
 
 ```c
-int thrd_create(thrd_t* out_thread, void (*func)(void));
+int thrd_create(thrd_t* out_thread, void (*entry)(void));
 ```
 
 Its implementation will live in `src/scheduler.c`:
 
 ```c
-int thrd_create(thrd_t* out_thread, void (*func)(void)) {
-  if (out_thread == NULL || func == NULL)
+int thrd_create(thrd_t* out_thread, void (*entry)(void)) {
+  if (out_thread == NULL || entry == NULL)
     return THRD_EINVAL;
 
-  tcb_t* new_thrd = tcb_init(func);
+  tcb_t* new_thrd = tcb_init(entry);
   if (new_thrd == NULL)
     return THRD_ENOMEM;
 
@@ -1263,6 +1266,7 @@ int thrd_create(thrd_t* out_thread, void (*func)(void)) {
 ```
 
 Now we can move `tcb_init` declaration from `include/thrd_ndl/thrd_ndl.h` to `tcb.h`.
+Also, replace the opaque return type `thrd_t` with `tcb_t*`.
 Since `src/scheduler.h` only contained `thrd_register`, the file can be deleted entirely.
 
 #### `thrd_exit` and the dead queue
@@ -1315,6 +1319,7 @@ The implementation will do three things:
 3. Call `thrd_yield`.
 `thrd_yield` never returns - the dying thread is dead, so the updated yield (below) won't re-enqueue it, and the context switch hands control to someone else permanently.
 That's why it uses the `noreturn` keyword.
+Place it in `src/scheduler.c`.
 
 ```c
 #include <stdnoreturn.h> // include this for 'noreturn'
@@ -1415,7 +1420,7 @@ void tcb_destroy(tcb_t* tcb) {
     return;
  
   os_free_stack(tcb->bsp, THRD_STACK_SIZE);
-  tcb_free(&tcb_pool, (void*)tcb);
+  tcb_free(tcb);
 }
 ```
 
@@ -1466,17 +1471,19 @@ Before, we said that we'll handle the `next_thrd != NULL` assertion in `thrd_yie
 Now we'll replace it with a more nuanced check:
 * If `next_thrd == NULL` and `curr_thrd->state == THRD_DEAD`, then every thread is gone - exit the program normally.
 * If `next_thrd == NULL` and `curr_thrd` is in some other non-`THRD_RUNNING` state, then something has gone wrong.
-To exit the program, we'll use `_exit` instead of `exit`.
-[`_exit`](https://stackoverflow.com/questions/57161596/how-to-use-exit-safely-from-any-thread) skips `atexit` handlers and `stdio` buffer flushing, and we want a clean process exit without running cleanup code on a stack we're about to discard.
+To exit the program, we'll use `_Exit` instead of `exit`.
+[`_Exit`](https://stackoverflow.com/questions/57161596/how-to-use-exit-safely-from-any-thread) skips `atexit` handlers and `stdio` buffer flushing, and we want a clean process exit without running cleanup code on a stack we're about to discard.
 
 So, replace `assert (next_thrd != NULL)` in `thrd_yield` with this:
 
 ```c
 if (next_thrd == NULL && curr_thrd->state == THRD_DEAD)
-  _exit(0);
+  _Exit(0);
 else if (next_thrd == NULL && curr_thrd->state != THRD_RUNNING)
-  _exit(1);
+  _Exit(1);
 ```
+
+Now you can remove `#include <assert.h>`.
 
 The dead queue is now self-draining.
 `thrd_exit` is responsible for enqueueing, `thrd_yield` for clearing.
