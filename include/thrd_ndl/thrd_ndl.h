@@ -15,7 +15,7 @@
 typedef void* thrd_t;
 
 typedef struct {
-  int is_locked;
+  thrd_t owner;
   thrd_t wait_queue_hd;
   thrd_t wait_queue_tl;
 } mutex_t;

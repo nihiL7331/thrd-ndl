@@ -17,10 +17,12 @@ int mutex_init(mutex_t* mutex) {
 void mutex_lock(mutex_t* mutex) {
   preempt_disable();
 
+  tcb_t* curr_thrd = get_curr_thrd();
+
   // if mutex is unlocked,
   // then lock it and return
-  if (!mutex->is_locked) {
-    mutex->is_locked = 1;
+  if (mutex->owner == NULL) {
+    mutex->owner = (thrd_t)curr_thrd;
     preempt_enable();
     return;
   }
@@ -29,7 +31,6 @@ void mutex_lock(mutex_t* mutex) {
   // by 2+ threads, as another
   // thread was first, this thread has to
   // block until it isn't locked
-  tcb_t* curr_thrd = get_curr_thrd();
   curr_thrd->state = THRD_BLOCKED;
 
   // push 'curr_thrd' to mutex wait queue
@@ -51,7 +52,7 @@ void mutex_unlock(mutex_t* mutex) {
   // if the wait queue is empty,
   // then just mark mutex as unlocked
   if (mutex->wait_queue_hd == NULL) {
-    mutex->is_locked = 0;
+    mutex->owner = NULL;
     preempt_enable();
     return;
   }
@@ -70,8 +71,8 @@ int mutex_trylock(mutex_t* mutex) {
   preempt_disable();
 
   // if mutex is unlocked then lock it,
-  if (!mutex->is_locked) {
-    mutex->is_locked = 1;
+  if (mutex->owner == NULL) {
+    mutex->owner = (thrd_t)get_curr_thrd();
     preempt_enable();
     return THRD_SUCCESS;
   }
