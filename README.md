@@ -1568,6 +1568,23 @@ Threads are freed one yield after they exit.
 
 The complete code for this section lives in [tutorial/section3/](tutorial/section3/).
 
+### Blocking primitives
+
+In the previous demo, we still had the ugly `while (completed < 2) thrd_yield();` line.
+Any kind of "wait until X" operation written with `thrd_yield` wastes turns.
+With N waiters, the ready queue is N threads doing nothing.
+This section will fix this.
+
+Up to now there were three states: `THRD_READY`, `THRD_RUNNING` and `THRD_DEAD`.
+Now we'll add a fourth one - for a thread, that's neither runnable nor finished - it's parked, waiting for an external event.
+It will be `THRD_BLOCKED`, along with a corresponding wait queue.
+
+Every primitive in this section will follow the same three-step recipe:
+1. Mark thread as blocked.
+2. Push it onto the primitive's private wait queue.
+3. Call `thrd_yield`.
+Waking a thread up will be a mirrored operation.
+
 ### Porting
 
 #### Windows
