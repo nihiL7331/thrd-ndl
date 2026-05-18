@@ -122,7 +122,7 @@ Functions that return `int` use these codes:
 * `THRD_ENOMEM`  - out of capacity (pool exhausted, heap full, OS alloc fail).
 * `THRD_EINVAL`  - invalid argument (`NULL` ptr, zero size, etc.).
 * `THRD_EBUSY`   - resource is held by another thread.
-* `THRD_EUNINIT` - passed argument is storing an unitialized struct.
+* `THRD_EUNINIT` - passed argument is storing an uninitialized struct.
 
 ### Threads
 
