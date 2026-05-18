@@ -1581,10 +1581,22 @@ Up to now there were three states: `THRD_READY`, `THRD_RUNNING` and `THRD_DEAD`.
 Now we'll add a fourth one - for a thread, that's neither runnable nor finished - it's parked, waiting for an external event.
 It will be `THRD_BLOCKED`, along with a corresponding wait queue.
 
+Just update the enum in `src/tcb.h`:
+
+```c
+typedef enum {
+  THRD_READY,
+  THRD_RUNNING,
+  THRD_DEAD,
+  THRD_BLOCKED,
+} thrd_state_t;
+```
+
 Every primitive in this section will follow the same three-step recipe:
 1. Mark thread as blocked.
 2. Push it onto the primitive's private wait queue.
 3. Call `thrd_yield`.
+
 Waking a thread up will be a mirrored operation.
 
 ### Porting
