@@ -198,21 +198,17 @@ void thrd_join(thrd_t thread) {
 
   preempt_disable();
 
-  // if thread is dead, return
   if (cast_thrd->state == THRD_DEAD) {
     preempt_enable();
     return;
   }
 
-  // mark it as blocked
   curr_thrd->state = THRD_BLOCKED;
 
-  // append it to 'cast_thrd's join queue
   thrd_enqueue(curr_thrd, &cast_thrd->join_queue_hd, &cast_thrd->join_queue_tl);
 
   preempt_enable();
 
-  // yield
   thrd_yield();
 }
 
