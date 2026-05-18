@@ -66,7 +66,7 @@
   column-gutter: 8pt,
   row-gutter: 4pt,
 
-  lane("Joiner"),
+  lane("joiner"),
   state(col-running, "RUNNING"),
   next(),
   state(col-blocked, "BLOCKED"),
@@ -88,7 +88,7 @@
   blank,
   blank,
 
-  lane("Target"),
+  lane("target"),
   state(col-running, "RUNNING"),
   next(),
   state(col-running, "RUNNING"),
