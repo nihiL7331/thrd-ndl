@@ -1599,6 +1599,157 @@ Every primitive in this section will follow the same three-step recipe:
 
 Waking a thread up will be a mirrored operation.
 
+#### `thrd_join`
+
+`thrd_join` is the simplest primitive included in this section.
+It will be responsible for blocking the caller until a target thread finishes, and it will achieve that without spinning.
+
+Waking up joined threads will occur in `thrd_exit`, which only knows about `curr_thrd`.
+That means that we need to store reference to the joining threads inside the TCB struct itself.
+
+While [`pthread_join`](https://man7.org/linux/man-pages/man3/pthread_join.3.html) allows for a single joiner for each thread, here we'll implement a slightly more complex list of joiners per thread.
+It will allow multiple threads to join the same target, waiting until it finishes.
+
+So we need to store a head and a tail of the join queue in the TCB.
+Update the struct in `src/tcb.h`:
+
+```c
+typedef struct tcb {
+  void*        rsp;           // the stack pointer
+  struct tcb*  next;          // intrusive next link for queue threading
+  thrd_state_t state;         // current scheduler state
+  void*        bsp;           // base stack pointer
+  struct tcb*  join_queue_hd; // head of joiners waiting on this thread
+  struct tcb*  join_queue_tl; // tail of joiners waiting on this thread
+} tcb_t;
+```
+
+The join queue fields will be `NULL` until someone joins.
+They will be cleared by `thrd_exit` after waking.
+
+With the addition of a new queue, it's a good moment to generalize the `rdy_enqueue`/`rdy_dequeue` helpers to work for any queue.
+Place them in a new file, `src/queue.h`:
+
+```c
+#pragma once
+
+#include "tcb.h" // include this for 'tcb_t'
+
+static inline void thrd_enqueue(tcb_t* thrd, tcb_t** hd, tcb_t** tl) {
+  thrd->next = NULL;
+
+  if (*tl != NULL)
+    (*tl)->next = thrd;
+  else
+    *hd = thrd;
+
+  *tl = thrd;
+}
+
+static inline tcb_t* thrd_dequeue(tcb_t** hd, tcb_t** tl) {
+  if (*hd == NULL)
+    return NULL;
+
+  tcb_t* pop_thrd = *hd;
+  
+  *hd = pop_thrd->next;
+  if (*hd == NULL)
+    *tl = NULL;
+
+  return pop_thrd;
+}
+```
+
+With this added, you can remove `rdy_enqueue`/`rdy_dequeue` and replace calls to it with their generic `thrd` counterparts.
+
+`thrd_join`, as mentioned in the introduction to this section, will simply mark the current thread as blocked, push it onto the wait queue and call `thrd_yield`.
+
+First, add it to the public API in `include/thrd_ndl/thrd_ndl.h`:
+
+```c
+int thrd_join(thrd_t thrd);
+```
+
+Then add its implementation in `src/scheduler.c`:
+
+```c
+int thrd_join(thrd_t thrd) {
+  if (thrd == NULL || (tcb_t*)thrd == curr_thrd)
+    return THRD_EINVAL;
+
+  tcb_t* cast_thrd = (tcb_t*)thrd;
+  if (cast_thrd->state == THRD_DEAD)
+    return THRD_SUCCESS;
+
+  curr_thrd->state = THRD_BLOCKED;
+
+  thrd_enqueue(curr_thrd, &cast_thrd->join_queue_hd, &cast_thrd->join_queue_tl);
+
+  thrd_yield();
+
+  return THRD_SUCCESS;
+}
+```
+
+Reading `cast_thrd->state` here is only safe while the caller knows the target's TCB hasn't been reclaimed.
+It means that `thrd_join` must run before any other thread yields after the target exits - otherwise the dead-queue cleanup pass may have already returned the slot to the pool, possibly with a different thread occupying it.
+
+Now, we need to modify `thrd_exit` to wake up every thread from `curr_thrd`'s wait queue.
+It's important to wake them up **before** the yield, otherwise the dying thread yields away and the joiners sit blocked until something else happens to schedule (which it won't because nothing else will).
+
+```c
+noreturn void thrd_exit(void) {
+  curr_thrd->state = THRD_DEAD;
+
+  curr_thrd->next = dead_queue_hd;
+  dead_queue_hd = curr_thrd;
+
+  tcb_t* awake_thrd = curr_thrd->join_queue_hd;
+  while (awake_thrd != NULL) {
+    tcb_t* next_thrd = awake_thrd->next;
+
+    awake_thrd->state = THRD_READY;
+    thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
+
+    awake_thrd = next_thrd;
+  }
+
+  curr_thrd->join_queue_hd = NULL;
+  curr_thrd->join_queue_tl = NULL;
+
+  thrd_yield();
+
+  abort(); 
+}
+```
+
+Putting both halves together, here's what the joiner experiences:
+1. The joiner calls `thrd_join(target)`.
+2. The joiner sets its own state to `THRD_BLOCKED` and enqueues itself onto `target->join_queue_hd/tl`.
+3. The joiner calls `thrd_yield`. The `if (state == THRD_RUNNING)` guard skips the ready re-enqueue.
+4. The scheduler dequeues some other ready thread, `thrd_switch` saves joiner's callee-saved registers onto its stack and its `%rsp` into the TCB. Joiner is frozen mid-yield.
+5. (some other work happens, possibly across many yields)
+6. The target eventually falls off the end of its entry function, lands in `thrd_exit`. The wake loop walks the join queue, sets each waiter to `THRD_READY`, and ready-enqueues them.
+7. The scheduler later picks joiner from the ready queue. `thrd_switch` restores its saved registers, and `ret` resumes inside `thrd_yield` right after the `thrd_switch` call.
+8. The joiner's `thrd_yield` returns into `thrd_join`, which then returns `THRD_SUCCESS` to its caller.
+
+If the joiner is the only candidate the scheduler has and nothing else is ready, `thrd_yield` will hit the `_Exit(1)` branch from [Cleaning up dead threads](#cleaning-up-dead-threads) - that branch doubles as deadlock detection.
+
+<div align="center">
+  <picture>
+      <source media="(prefers-color-scheme: dark)"
+    srcset="docs/assets/joiner_timeline_dark.svg">
+      <source media="(prefers-color-scheme: light)"
+    srcset="docs/assets/joiner_timeline_light.svg">
+      <img alt="joiner/target relative timeline" src="docs/assets/joiner_timeline_dark.svg">
+  </picture>
+
+  <p><em>State transitions during a <code>thrd_join</code>. The joiner parks on the target's join queue and stays off-CPU until the target's <code>thrd_exit</code> flips it back to <code>THRD_READY</code>.</em></p>
+</div>
+
+Unlike a `thrd_yield`, which re-queues the caller and is guaranteed to resume on its own, a blocked thread can only resume when another thread explicitly wakes it.
+This is what makes the primitive "blocking" instead of "polling".
+
 ### Porting
 
 #### Windows
