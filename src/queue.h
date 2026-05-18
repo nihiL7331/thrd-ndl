@@ -2,15 +2,15 @@
 
 #include "tcb.h"
 
-static inline void thrd_enqueue(tcb_t* ptr, tcb_t** hd, tcb_t** tl) {
-  ptr->next = NULL;
+static inline void thrd_enqueue(tcb_t* thrd, tcb_t** hd, tcb_t** tl) {
+  thrd->next = NULL;
 
   if (*tl != NULL)
-    (*tl)->next = ptr;
+    (*tl)->next = thrd;
   else
-    *hd = ptr;
+    *hd = thrd;
 
-  *tl = ptr;
+  *tl = thrd;
 }
 
 static inline tcb_t* thrd_dequeue(tcb_t** hd, tcb_t** tl) {

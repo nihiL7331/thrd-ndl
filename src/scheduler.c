@@ -10,7 +10,7 @@
 #include "internal.h"
 #include "platform.h"
 #include "tcb.h"
-#include "utils.h"
+#include "queue.h"
 #include "heap.h"
 
 extern void thrd_switch(tcb_t* old_tcb, tcb_t* new_tcb);

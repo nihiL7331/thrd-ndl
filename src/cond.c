@@ -1,7 +1,7 @@
 #include "platform.h"
 #include "scheduler.h"
 #include "tcb.h"
-#include "utils.h"
+#include "queue.h"
 #include <thrd_ndl/thrd_ndl.h>
 #include <assert.h>
 #include <string.h>
