@@ -16,13 +16,13 @@ typedef void* thrd_t;
 
 typedef struct {
   int is_locked;
-  void* wait_queue_hd;
-  void* wait_queue_tl;
+  thrd_t wait_queue_hd;
+  thrd_t wait_queue_tl;
 } mutex_t;
 
 typedef struct {
-  void* block_queue_hd;
-  void* block_queue_tl;
+  thrd_t block_queue_hd;
+  thrd_t block_queue_tl;
 } cond_t;
 
 noreturn void thrd_exit(void);
