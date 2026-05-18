@@ -1322,6 +1322,7 @@ The implementation will do three things:
 1. Set `curr_thrd->state` to `THRD_DEAD`.
 2. Push `curr_thrd` onto `dead_queue_hd`.
 3. Call `thrd_yield`.
+
 `thrd_yield` never returns - the dying thread is dead, so the updated yield (below) won't re-enqueue it, and the context switch hands control to someone else permanently.
 That's why it uses the `noreturn` keyword.
 Place it in `src/scheduler.c`.
@@ -1476,6 +1477,7 @@ Before, we said that we'll handle the `next_thrd != NULL` assertion in `thrd_yie
 Now we'll replace it with a more nuanced check:
 * If `next_thrd == NULL` and `curr_thrd->state == THRD_DEAD`, then every thread is gone - exit the program normally.
 * If `next_thrd == NULL` and `curr_thrd` is in some other non-`THRD_RUNNING` state, then something has gone wrong.
+
 To exit the program, we'll use `_Exit` instead of `exit`.
 [`_Exit`](https://stackoverflow.com/questions/57161596/how-to-use-exit-safely-from-any-thread) skips `atexit` handlers and `stdio` buffer flushing, and we want a clean process exit without running cleanup code on a stack we're about to discard.
 
