@@ -2391,6 +2391,66 @@ This allows `func_a` to acquire `mutex`, print its counter, change the turn and 
 
 The complete code for this section lives in [tutorial/section4/](tutorial/section4/).
 
+### Sleep and the heap
+
+The overall outcome of this section is to add a proper `thrd_sleep(ms)` functionality to the library.
+But before we will be able to put threads to sleep, the scheduler needs a reliable way to tell time.
+
+#### Time and the platform
+
+If a thread wants to sleep for 100ms, we need to record the current time, add 100ms, and wake the thread once the clock passes this threshhold.
+
+We can't use standard C functions like `time` here, nor can we use POSIX `gettimeofday`.
+These account for stuff like daylight saving adjustments, user changes, and NTP background synchronization.
+If the system clock adjusts backwards by an hour while a thread is sleeping, a 100ms sleep turns into a one-hour (and 100ms!) wait.
+
+To prevent this, we must use a [monotonic clock](https://linux-audit.com/what-is/monotonic-timer/).
+A monotonic clock is a specialized OS timer that only ever moves forward at a constant rate, completely detached from the calendar.
+
+We also need a way to put the underlying OS thread to sleep.
+If every single thread is sleeping, the scheduler has no work to do.
+If it just busy waits, it'll consume 100% of the CPU thread.
+By using an OS-level sleep, the scheduler can pause the entire process and yield the CPU back to the host system until the nearest thread is due to wake up.
+
+Let's add two new helpers to `src/platform.h`:
+
+```c
+#include <stdint.h>
+
+// ...
+
+uint64_t get_os_time(void);
+void     os_sleep_ms(uint64_t time_ms);
+```
+
+Since we are focusing on Linux/macOS for the time being, we will use `clock_gettime` with `CLOCK_MONOTONIC` to get the time in milliseconds, and `nanosleep` to park the OS thread.
+Add the following to `src/platform.c`:
+
+```c
+#include <time.h> // include for 'struct timespec', 'clock_gettime', 'CLOCK_MONOTONIC', 'nanosleep'
+
+// ...
+
+uint64_t get_os_time(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+
+  return (ts.tv_sec * 1000ULL) + (ts.tv_nsec / 1000000ULL);
+}
+
+void os_sleep_ms(uint64_t time_ms) {
+  struct timespec ts;
+  ts.tv_sec = time_ms / 1000ULL;
+  ts.tv_nsec = (time_ms - (ts.tv_sec * 1000ULL)) * 1000000ULL;
+
+  nanosleep(&ts, NULL);
+}
+```
+
+The Windows equivalent will be covered in the [Porting](#porting) section.
+
+With our timekeeping primitives in place, we can move on to the data structure that will hold our sleeping threads, the binary min-heap.
+
 ### Porting
 
 #### Windows
