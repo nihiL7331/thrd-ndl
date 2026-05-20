@@ -2406,10 +2406,10 @@ There are ways to solve that issue: Windows [Fibers](https://learn.microsoft.com
 
 ## Roadmap
 
-- [ ] Cover the Blocking primitives section of README implementation.
 - [ ] Cover the Sleep and the heap section of README implementation.
 - [ ] Cover the Preemption section implementation in README.
 - [ ] Cover the Porting section implementation in README.
+- [x] Cover the Blocking primitives section of README implementation.
 - [x] Cover the Thread lifecycle section of README implementation.
 - [x] Cover the Cooperative scheduling section of README implementation.
 - [x] Cover the Context switching section of README implementation.
