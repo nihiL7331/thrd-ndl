@@ -14,7 +14,10 @@ int mutex_init(mutex_t* mutex) {
   return THRD_SUCCESS;
 }
 
-void mutex_lock(mutex_t* mutex) {
+int mutex_lock(mutex_t* mutex) {
+  if (mutex == NULL)
+    return THRD_EINVAL;
+
   preempt_disable();
 
   tcb_t* curr_thrd = get_curr_thrd();
@@ -24,7 +27,7 @@ void mutex_lock(mutex_t* mutex) {
   if (mutex->owner == NULL) {
     mutex->owner = (thrd_t)curr_thrd;
     preempt_enable();
-    return;
+    return THRD_SUCCESS;
   }
 
   // the mutex is contested
@@ -44,6 +47,8 @@ void mutex_lock(mutex_t* mutex) {
 
   // push the thread off of cpu
   thrd_yield();
+
+  return THRD_SUCCESS;
 }
 
 int mutex_unlock(mutex_t* mutex) {
