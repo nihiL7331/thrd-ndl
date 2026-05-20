@@ -21,8 +21,8 @@ typedef struct {
 } mutex_t;
 
 typedef struct {
-  thrd_t block_queue_hd;
-  thrd_t block_queue_tl;
+  thrd_t wait_queue_hd;
+  thrd_t wait_queue_tl;
 } cond_t;
 
 noreturn void thrd_exit(void);
