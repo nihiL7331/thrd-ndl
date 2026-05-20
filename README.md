@@ -2451,6 +2451,178 @@ The Windows equivalent will be covered in the [Porting](#porting) section.
 
 With our timekeeping primitives in place, we can move on to the data structure that will hold our sleeping threads, the binary min-heap.
 
+#### The binary min-heap
+
+When threads go to sleep, the scheduler needs a way to keep track of them and wake them up at the correct time.
+
+A naive approach would be to push sleeping threads onto a simple linked list, just like we did with all the queues.
+But how do we know which thread to wake up first? 
+We would need to either search a whole list on every tick (*O(n)* time), or we could keep the list sorted so the earliest wake-up time is always at the head.
+But keeping a linked list sorted means every time a thread goes to sleep, we have to walk the list to find the right insertion point (also *O(n)* time).
+
+Instead, we will use a [binary min-heap](https://www.andrew.cmu.edu/course/15-121/lectures/Binary%20Heaps/heaps.html).
+A min-heap is a tree-like data structure where every parent node has a smaller value than its children.
+This guarantees that the smallest value (the earliest wake-up time) is always instantly accessible at the root (*O(1)* time).
+Inserting a new thread or extracting the root takes at most *O(log n)* steps, being way better than the naive approach.
+
+First, let's update our TCB to store its scheduled wake-up time.
+Open `src/tcb.h` and add `wakeup_time`:
+
+```c
+typedef struct tcb {
+  void*        rsp;           // the stack pointer
+  struct tcb*  next;          // intrusive next link for queue threading
+  thrd_state_t state;         // current scheduler state
+  void*        bsp;           // base stack pointer
+  struct tcb*  join_queue_hd; // head of joiners waiting on this thread
+  struct tcb*  join_queue_tl; // tail of joiners waiting on this thread
+  uint64_t     wakeup_time;   // the abs monotonic time this thread should wake
+} tcb_t;
+```
+
+Instead of hardcoding the heap directly for the scheduler, we'll build a generic, reusable heap structure (like we did with the [Pool allocator](#pool-allocator)).
+It will take a backing array, a capacity, and a custom comparison function, allowing us to use it for TCBs.
+
+Let's declare the API in a new file, `src/heap.h`:
+
+```c
+#pragma once
+
+#include <stddef.h> // include for 'size_t'
+
+typedef struct {
+  void** data;
+  size_t count;
+  size_t cap;
+  // comparator returns:
+  // < 0 if a should return first,
+  // > 0 if b should return first,
+  // 0 if equal.
+  int (*cmp)(const void* a, const void* b);
+} heap_t;
+
+int   heap_new(heap_t* heap, void** storage, size_t cap, int (*cmp_fn)(const void*, const void*));
+int   heap_push(heap_t* heap, void* obj);
+void* heap_peek(const heap_t* heap);
+void* heap_pop(heap_t* heap);
+```
+
+Next, create `src/heap.c`.
+Add it to your `CMakeLists.txt`.
+The logic relies on treating a flat array as a binary tree.
+When we push an object, we place it at the end of the array and sift it up until it is no longer smaller than its parent.
+When we pop the root, we take the last element in the array, move it to the root, and sift it down until it is smaller than its children.
+Place the implementation below in `src/heap.c`.
+
+```c
+#include "heap.h"
+#include <assert.h>
+#include <stddef.h>
+#include <thrd_ndl/thrd_ndl.h>
+
+#define PARENT(i)  (((i) - 1) / 2)
+#define CHILD_L(i) (((i) * 2) + 1)
+#define CHILD_R(i) (((i) * 2) + 2)
+
+static inline void sift_up(heap_t* heap, size_t idx);
+static inline void sift_down(heap_t* heap, size_t idx);
+
+int heap_new(heap_t* heap, void** storage, size_t cap, int (*cmp_fn)(const void*, const void*)) {
+  if (cap == 0 || heap == NULL || storage == NULL || cmp_fn == NULL)
+    return THRD_EINVAL;
+
+  heap->data = storage;
+  heap->count = 0;
+  heap->cap = cap;
+  heap->cmp = cmp_fn;
+
+  return THRD_SUCCESS;
+}
+
+int heap_push(heap_t* heap, void* obj) {
+  if (heap == NULL || obj == NULL)
+    return THRD_EINVAL;
+
+  if (heap->count == heap->cap)
+    return THRD_ENOMEM;
+
+  heap->data[heap->count++] = obj;
+  sift_up(heap, heap->count - 1);
+
+  return THRD_SUCCESS;
+}
+
+void* heap_peek(const heap_t* heap) {
+  if (heap == NULL || heap->count == 0)
+    return NULL;
+
+  return heap->data[0];
+}
+
+void* heap_pop(heap_t* heap) {
+  if (heap == NULL || heap->count == 0)
+    return NULL;
+
+  void* pop_data = heap->data[0];
+  heap->data[0] = heap->data[--heap->count];
+
+  // this does nothing if heap->count <= 1
+  sift_down(heap, 0);
+
+  return pop_data;
+}
+
+static inline void heap_swap(heap_t* heap, size_t idx_a, size_t idx_b) {
+  void* tmp = heap->data[idx_a];
+  heap->data[idx_a] = heap->data[idx_b];
+  heap->data[idx_b] = tmp;
+}
+
+static inline void sift_up(heap_t* heap, size_t idx) {
+  while (idx > 0) {
+    size_t par_idx = PARENT(idx);
+
+    if (heap->cmp(heap->data[idx], heap->data[par_idx]) >= 0)
+      break;
+
+    heap_swap(heap, idx, par_idx);
+
+    idx = par_idx;
+  }
+}
+
+static inline void sift_down(heap_t* heap, size_t idx) {
+  while (1) {
+    size_t l_idx = CHILD_L(idx);
+    size_t r_idx = CHILD_R(idx);
+    size_t min_idx = idx;
+
+    if (l_idx < heap->count && heap->cmp(heap->data[l_idx], heap->data[min_idx]) < 0)
+      min_idx = l_idx;
+    
+    if (r_idx < heap->count && heap->cmp(heap->data[r_idx], heap->data[min_idx]) < 0)
+      min_idx = r_idx;
+
+    // if both indices are either out of range, or are bigger than data[idx],
+    // then break
+    if (min_idx == idx)
+      break;
+
+    // else swap and continue from the smallest index
+    heap_swap(heap, idx, min_idx);
+    idx = min_idx;
+  }
+}
+```
+
+We didn't use the intrusive `next` pointer approach like we did with the TCB, because using the macros defined at the top a binary heap accesses parent and child nodes at *O(1)* time, whereas an intrusive structure would require complex pointer juggling and tree-balancing algorithms to achieve the same result.
+
+With this handled, we can instantiate it inside our scheduler and expose the `thrd_sleep` API.
+
+<div align="center">
+  <p><em>For a more in-depth explanation of how this data structure functions, check <a href="https://www.andrew.cmu.edu/course/15-121/lectures/Binary%20Heaps/heaps.html">this</a> (it was also linked above).</em></p>
+</div>
+
 ### Porting
 
 #### Windows
