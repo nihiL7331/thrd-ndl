@@ -2297,6 +2297,100 @@ mutex_unlock(&mutex);
 
 With this covered, we can close out the section with a demo, as usual.
 
+#### A blocking-aware demo
+
+With `thrd_join`, mutexes, and condition variables implemented, we have completely eliminated the need for busy-waiting in our user code.
+We can now safely synchronize threads and share state.
+
+To showcase this, we will update `func_a` and `func_b` from the previous demos.
+Instead of yielding blindly and hoping they alternate perfectly, we will enforce strict alteration using a shared `curr_turn` variable, a mutex, and a cond variable.
+
+Notice how the `while (completed < 2) thrd_yield();` in `main` is gone, replaced by two `thrd_join` calls.
+
+```c
+#include <stdio.h>
+#include <thrd_ndl/thrd_ndl.h>
+
+static mutex_t mutex;
+static cond_t  cond;
+
+static int curr_turn = 0;
+
+static void func_a(void) {
+  for (int i = 0; i < 3; ++i) {
+    mutex_lock(&mutex);
+
+    while (curr_turn != 0)
+      cond_wait(&cond, &mutex);
+
+    printf("A: %d\n", i);
+    curr_turn = 1;
+
+    cond_signal(&cond);
+    mutex_unlock(&mutex);
+  }
+}
+
+static void func_b(void) {
+  for (int i = 0; i < 3; ++i) {
+    mutex_lock(&mutex);
+
+    while (curr_turn != 1)
+      cond_wait(&cond, &mutex);
+
+    printf("B: %d\n", i);
+    curr_turn = 0;
+
+    cond_signal(&cond);
+    mutex_unlock(&mutex);
+  }
+}
+
+int main(void) {
+  if (thrd_init() != THRD_SUCCESS)
+    return 1;
+
+  mutex_init(&mutex);
+  cond_init(&cond);
+
+  thrd_t thrd_a, thrd_b;
+  if (thrd_create(&thrd_a, func_a) != THRD_SUCCESS)
+    return 1;
+  if (thrd_create(&thrd_b, func_b) != THRD_SUCCESS)
+    return 1;
+
+  thrd_join(thrd_a);
+  thrd_join(thrd_b);
+
+  printf("done\n");
+}
+```
+
+Build and run exactly as before:
+
+```bash
+cmake -B build && cmake --build build && ./build/demo
+```
+
+The expected output guarantees strict alteration, regardless of how the scheduler queues the threads behind the scenes:
+
+```
+A: 0
+B: 0
+A: 1
+B: 1
+A: 2
+B: 2
+done
+```
+
+This demo proves that our blocking architecture is working perfectly.
+When `func_b` calls `cond_wait`, it drops `mutex` and sleeps.
+This allows `func_a` to acquire `mutex`, print its counter, change the turn and call `cond_signal`.
+`func_a` then drops `mutex`, and `func_b` wakes up, automatically reacquiring the lock to continue the cycle.
+
+The complete code for this section lives in [tutorial/section4/](tutorial/section4/).
+
 ### Porting
 
 #### Windows
