@@ -1670,6 +1670,8 @@ int thrd_join(thrd_t thrd);
 Then add its implementation in `src/scheduler.c`:
 
 ```c
+#include "queue.h" // include for 'thrd_enqueue'
+
 int thrd_join(thrd_t thrd) {
   if (thrd == NULL || (tcb_t*)thrd == curr_thrd)
     return THRD_EINVAL;
