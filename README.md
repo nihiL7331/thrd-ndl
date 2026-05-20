@@ -2250,7 +2250,7 @@ int cond_signal(cond_t* cond) {
     return THRD_EINVAL;
 
   if (cond->wait_queue_hd != NULL) {
-    tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
+    tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->wait_queue_hd, (tcb_t**)&cond->wait_queue_tl);
     resume_thrd(signal_thrd);
   }
 
@@ -2262,7 +2262,7 @@ int cond_bcast(cond_t* cond) {
     return THRD_EINVAL;
 
   while (cond->wait_queue_hd != NULL) {
-    tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
+    tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->wait_queue_hd, (tcb_t**)&cond->wait_queue_tl);
     resume_thrd(signal_thrd);
   }
 
