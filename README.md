@@ -146,7 +146,7 @@ Functions that return `int` use these codes:
 * `int cond_init(cond_t* cond)` - initializes the cond, must be called before first use. Returns `THRD_SUCCESS` or `THRD_EINVAL`.
 * `int cond_wait(cond_t* cond, mutex_t* mutex)` - releases `mutex` and blocks, reacquires on wake. Returns `THRD_SUCCESS` was successfully awaited. Returns `THRD_EINVAL` if `cond` or `mutex` is `NULL`, or if the caller isn't the owner of `mutex`.
 * `int cond_signal(cond_t* cond)` - wakes one thread waiting on the `cond` condition. Returns `THRD_EINVAL` if `cond == NULL`, `THRD_SUCCESS` otherwise.
-* `cond_bcast(cond_t* cond)` - wakes all threads waiting on the `cond` condition.
+* `int cond_bcast(cond_t* cond)` - wakes all threads waiting on the `cond` condition. Returns `THRD_EINVAL` if `cond == NULL`, `THRD_SUCCESS` otherwise.
 
 <div align="center">
   <p><em>Procedures don't return anything unless specified.</em></p>

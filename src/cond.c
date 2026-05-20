@@ -66,7 +66,10 @@ int cond_signal(cond_t* cond) {
   return THRD_SUCCESS;
 }
 
-void cond_bcast(cond_t* cond) {
+int cond_bcast(cond_t* cond) {
+  if (cond == NULL)
+    return THRD_EINVAL;
+
   preempt_disable();
 
   // do the same as in 'cond_signal', 
@@ -78,4 +81,6 @@ void cond_bcast(cond_t* cond) {
   }
 
   preempt_enable();
+
+  return THRD_SUCCESS;
 }
