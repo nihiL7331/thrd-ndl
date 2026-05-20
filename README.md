@@ -2025,7 +2025,7 @@ Thanks to `mutex_trylock`, this implementation will be simple:
 As always, update the public header:
 
 ```c
-void mutex_lock(mutex_t* mutex);
+int mutex_lock(mutex_t* mutex);
 ```
 
 And the implementation in `src/mutex.c`:
@@ -2033,9 +2033,12 @@ And the implementation in `src/mutex.c`:
 ```c
 #include "queue.h" // include for 'thrd_enqueue'
 
-void mutex_lock(mutex_t* mutex) {
+int mutex_lock(mutex_t* mutex) {
+  if (mutex == NULL)
+    return THRD_EINVAL;
+
   if (mutex_trylock(mutex) == THRD_SUCCESS)
-    return;
+    return THRD_SUCCESS;
 
   tcb_t* curr_thrd = get_curr_thrd();
   curr_thrd->state = THRD_BLOCKED;
@@ -2043,6 +2046,8 @@ void mutex_lock(mutex_t* mutex) {
   thrd_enqueue(curr_thrd, (tcb_t**)&mutex->wait_queue_hd, (tcb_t**)&mutex->wait_queue_tl);
 
   thrd_yield();
+  
+  return THRD_SUCCESS;
 }
 ```
 
