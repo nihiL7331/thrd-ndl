@@ -232,6 +232,11 @@ void thrd_sleep(uint64_t time_ms) {
   if (curr_thrd == NULL)
     return;
 
+  if (time_ms == 0) {
+    thrd_yield();
+    return;
+  }
+
   preempt_disable();
 
   // get absolute os time
