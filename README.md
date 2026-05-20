@@ -2623,6 +2623,108 @@ With this handled, we can instantiate it inside our scheduler and expose the `th
   <p><em>For a more in-depth explanation of how this data structure functions, check <a href="https://www.andrew.cmu.edu/course/15-121/lectures/Binary%20Heaps/heaps.html">this</a> (it was also linked above).</em></p>
 </div>
 
+#### `thrd_sleep`
+
+With our monotonic clock and priority queue in place, we are ready to implement the `thrd_sleep` function.
+
+We'll begin with adding a new state to the enum in `src/tcb.h`:
+
+```c
+typedef enum {
+  THRD_READY,
+  THRD_RUNNING,
+  THRD_DEAD,
+  THRD_BLOCKED,
+  THRD_ZOMBIE,
+  THRD_SLEEPING,
+} thrd_state_t;
+```
+
+Next, expose the new sleep function in the public API header, `include/thrd_ndl/thrd_ndl.h`:
+
+```c
+void thrd_sleep(uint64_t time_ms);
+```
+
+Now we will wire up the generic `heap_t` into the scheduler.
+In `src/scheduler.c` we need an array to back the heap, the heap struct itself, and a comparison function that tells the heap how to sort `tcb_t` structs based on theier wakeup time.
+
+Add the following to `src/scheduler.c`:
+
+```c
+#include "heap.h"     // include for 'heap_new'
+#include "internal.h" // include for 'POOL_THRD_CNT'
+
+static void* sleep_heap_storage[POOL_THRD_CNT];
+static heap_t sleep_queue;
+static int wakeup_cmp(const void* a, const void* b);
+
+// ...
+
+static int wakeup_cmp(const void* a, const void* b) {
+  const uint64_t wakeup_a = ((tcb_t*)a)->wakeup_time;
+  const uint64_t wakeup_b = ((tcb_t*)b)->wakeup_time;
+
+  return (wakeup_a > wakeup_b) - (wakeup_a < wakeup_b);
+}
+```
+
+We must initialize the heap when the scheduler starts.
+Hence, add the initialization call to `thrd_init`:
+
+```c
+int thrd_init(void) {
+  // already init check ...
+  // pool init ...
+
+  // initialize sleep binary heap
+  int heap_ret_val = heap_new(&sleep_queue, sleep_heap_storage, POOL_THRD_CNT, wakeup_cmp);
+  if (heap_ret_val != THRD_SUCCESS)
+    return heap_ret_val;
+
+  // create main thrd ...
+}
+```
+
+Finally, we can implement `thrd_sleep`.
+
+When a thread wants to sleep, it does the following:
+1. Asks the OS for the current time.
+2. Adds the requested sleep duration to calculate its absolute `wakeup_time`.
+3. Changes its state to `THRD_SLEEPING`.
+4. Pushes itself onto the heap.
+5. Yields.
+
+Add this implementation to `src/scheduler.c`:
+
+```c
+void thrd_sleep(uint64_t time_ms) {
+  if (curr_thrd == NULL)
+    return;
+
+  if (time_ms == 0) {
+    thrd_yield();
+    return;
+  }
+
+  curr_thrd->wakeup_time = get_os_time() + time_ms;
+  curr_thrd->state = THRD_SLEEPING;
+
+  heap_push(&sleep_queue, curr_thrd);
+
+  thrd_yield();
+}
+```
+
+Notice that if `time_ms == 0`, then we skip the heap entirely and just call `thrd_yield`.
+
+Because the thread changes its state to `THRD_SLEEPING`, `thrd_yield`'s guard (`if (curr_thrd->state == THRD_RUNNING)`) will skip putting it back onto the ready queue.
+The thread will be suspended, sitting at the correctly sorted position in the min-heap.
+
+But right now we have no option to wake it up.
+As it stands, a sleeping thread will stay on the heap forever.
+In the next subsection, we will update the scheduler loop to process this heap and actually wake threads up when their time arrives.
+
 ### Porting
 
 #### Windows
