@@ -128,11 +128,11 @@ Functions that return `int` use these codes:
 
 * `int thrd_init` - must be called once before anything else. Sets up the scheduler and creates the implicit main thread. Returns `THRD_SUCCESS` on success, `THRD_EINVAL` if called more than once, or `THRD_ENOMEM` if the underlying OS allocation fails.
 * `int thrd_create(thrd_t* out_thread, void (*func)(void))` - creates a new thread. Returns `THRD_SUCCESS` or `THRD_ENOMEM` if the pool is exhausted.
-* `thrd_yield` - voluntarily hands control to the next ready thread.
-* `thrd_sleep(uint64_t time_ms)` - suspends the current thread for at least `time_ms` milliseconds.
+* `void thrd_yield` - voluntarily hands control to the next ready thread.
+* `void thrd_sleep(uint64_t time_ms)` - suspends the current thread for at least `time_ms` milliseconds.
 * `int thrd_join(thrd_t thrd)` - blocks until `thrd` finishes. Returns `THRD_SUCCESS` on success or if passed argument is already dead, `THRD_EINVAL` if passed argument is `NULL` or the current running thread.
-* `thrd_exit` - explicitly exits the current thread. It's called implicitly when the thread function returns.
-* `thrd_dump` - writes a snapshot of the scheduler state to `stderr`, intended as a debugging procedure, safe to call from any thread.
+* `void thrd_exit` - explicitly exits the current thread. It's called implicitly when the thread function returns.
+* `void thrd_dump` - writes a snapshot of the scheduler state to `stderr`, intended as a debugging procedure, safe to call from any thread.
 
 ### Mutexes
 
@@ -147,10 +147,6 @@ Functions that return `int` use these codes:
 * `int cond_wait(cond_t* cond, mutex_t* mutex)` - releases `mutex` and blocks, reacquires on wake. Returns `THRD_SUCCESS` was successfully awaited. Returns `THRD_EINVAL` if `cond` or `mutex` is `NULL`, or if the caller isn't the owner of `mutex`.
 * `int cond_signal(cond_t* cond)` - wakes one thread waiting on the `cond` condition. Returns `THRD_EINVAL` if `cond == NULL`, `THRD_SUCCESS` otherwise.
 * `int cond_bcast(cond_t* cond)` - wakes all threads waiting on the `cond` condition. Returns `THRD_EINVAL` if `cond == NULL`, `THRD_SUCCESS` otherwise.
-
-<div align="center">
-  <p><em>Procedures don't return anything unless specified.</em></p>
-</div>
 
 ## Implementation
 
