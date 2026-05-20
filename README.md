@@ -1629,7 +1629,8 @@ Place them in a new file, `src/queue.h`:
 ```c
 #pragma once
 
-#include "tcb.h" // include this for 'tcb_t'
+#include "tcb.h"    // include this for 'tcb_t'
+#include <stdlib.h> // include this for 'NULL'
 
 static inline void thrd_enqueue(tcb_t* thrd, tcb_t** hd, tcb_t** tl) {
   thrd->next = NULL;
