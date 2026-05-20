@@ -1563,7 +1563,7 @@ B: 2
 done
 ```
 
-Notice, that now when `func_a` falls off the end, its `ret` pops `thrd_exit`'s address from the padding slot.
+Notice that now when `func_a` falls off the end, its `ret` pops `thrd_exit`'s address from the padding slot.
 `thrd_exit` marks the threads state as `THRD_DEAD`, pushes it onto the dead queue, and yields.
 The yield's cleanup loop skips the just-exited thread (it's still `curr_thrd`), but the next yield by another thread removes it.
 Threads are freed one yield after they exit.
@@ -1749,6 +1749,112 @@ If the joiner is the only candidate the scheduler has and nothing else is ready,
 
 Unlike a `thrd_yield`, which re-queues the caller and is guaranteed to resume on its own, a blocked thread can only resume when another thread explicitly wakes it.
 This is what makes the primitive "blocking" instead of "polling".
+
+#### Zombie
+
+In the previous subsection, we implemented `thrd_join` and noted that it is only safe if the caller knows the target thread hasn't been reclaimed yet.
+If we think closely about the timeline of our thread lifecycle, there is a race condition.
+
+Consider this sequence of events:
+1. Thread `A` finishes its execution and falls into `thrd_exit`.
+2. `A` pushes itself onto the dead queue and calls `thrd_yield`.
+3. The scheduler picks up thread `B`. At the top of `thrd_yield`, the cleanup loop completely frees `A`'s TCB and stack to the pool.
+4. Thread `C`, which was busy doing other work, finally calls `thrd_join(thrd_a)`.
+
+`C` is now reading a dangling pointer.
+Even worse, if the pool already reused that memory for a brand new thread, `C` will park itself on a completely unrelated thread's wait queue.
+
+To fix this, we'll borrow a concept from OS kernels (like [Linux](https://access.redhat.com/sites/default/files/attachments/processstates_20120831.pdf)): a `THRD_ZOMBIE` state.
+When a thread finishes executing, it doesn't immediately go to the dead queue.
+Instead, it becomes a zombie, meaning that it's off the CPU but its struct and stack are still there.
+It's a temporary state between e.g. `THRD_RUNNING` and `THRD_DEAD`.
+It only truly dies and gets cleaned up when another thread acknowledges its death by joining it.
+
+First, let's update `thrd_state_t` in `src/tcb.h`:
+
+```c
+typedef enum {
+  THRD_READY,
+  THRD_RUNNING,
+  THRD_DEAD,
+  THRD_BLOCKED,
+  THRD_ZOMBIE,
+} thrd_state_t;
+```
+
+Now we will rewrite `thrd_exit` in `src/scheduler.c`.
+The logic branches based on whether anyone is already waiting for us.
+If there are threads in our join queue, we wake them up and proceed to the dead queue normally (the joiner has already acknowledged us).
+If there are no joiners, we become a zombie and wait for one.
+
+```c
+noreturn void thrd_exit(void) {
+  if (curr_thrd->join_queue_hd != NULL) {
+    // we have joiners, wake them up and proceed to the dead queue
+    curr_thrd->state = THRD_DEAD;
+
+    curr_thrd->next = dead_queue_hd;
+    dead_queue_hd = curr_thrd;
+
+    tcb_t* awake_thrd = curr_thrd->join_queue_hd;
+    while (awake_thrd != NULL) {
+      tcb_t* next_thrd = awake_thrd->next;
+
+      awake_thrd->state = THRD_READY;
+      thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
+
+      awake_thrd = next_thrd;
+    }
+
+    curr_thrd->join_queue_hd = NULL;
+    curr_thrd->join_queue_tl = NULL;
+  } else
+    // no one is waiting, become a zombie
+    curr_thrd->state = THRD_ZOMBIE;
+
+  thrd_yield();
+
+  abort(); 
+}
+```
+
+Finally, we update `thrd_join`.
+If a thread calls `thrd_join` and sees the target is already a `THRD_ZOMBIE`, it means the target finished before we could park on its wait queue.
+The joiner simply pushes the zombie onto the dead queue to be cleaned up, and returns immediately without yielding.
+
+Replace the `THRD_DEAD` check in `thrd_join` with this new zombie logic:
+
+```c
+int thrd_join(thrd_t thrd) {
+  if (thrd == NULL || (tcb_t*)thrd == curr_thrd)
+    return THRD_EINVAL;
+
+  tcb_t* cast_thrd = (tcb_t*)thrd;
+  
+  // if the target is a zombie, bury it and return immediately
+  if (cast_thrd->state == THRD_ZOMBIE) {
+    cast_thrd->state = THRD_DEAD;
+
+    cast_thrd->next = dead_queue_hd;
+    dead_queue_hd = cast_thrd;
+
+    return THRD_SUCCESS;
+  }
+
+  curr_thrd->state = THRD_BLOCKED;
+
+  thrd_enqueue(curr_thrd, &cast_thrd->join_queue_hd, &cast_thrd->join_queue_tl);
+
+  thrd_yield();
+
+  return THRD_SUCCESS;
+}
+```
+
+But what happens if a thread exits but it's never joined?
+Under this implementation, it stays a `THRD_ZOMBIE` forever, leaking its TCB and stack memory until the process terminates.
+A solution to this would be to introduce a `thrd_detach` function to tell the scheduler that a thread will never be joined, allowing it to bypass the zombie state and clean itself up immediately.
+This is out of scope for this implementation (for the time being).
 
 ### Porting
 
