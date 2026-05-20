@@ -1500,9 +1500,9 @@ With this in place, the next subsection can finally show worker functions return
 
 This section got rid of most of the hacks present in the last demo.
 Going through the last demo, we had:
-- `while (1) thrd_yield();` after each thread's loop - removed. Workers now `return` normally, using the implicit-exit trick from the [`thrd_exit` and the dead queue](#thrd_exit-and-the-dead-queue) subsection.
-- `tcb_init(func_a); thrd_register(thrd_a)` replaced with `thrd_create` from [`thrd_create`](#thrd_create).
-- `while (completed < 2) thrd_yield();` - this will be solved in the next section, [Blocking primitives](#blocking-primitives).
+* `while (1) thrd_yield();` after each thread's loop - removed. Workers now `return` normally, using the implicit-exit trick from the [`thrd_exit` and the dead queue](#thrd_exit-and-the-dead-queue) subsection.
+* `tcb_init(func_a); thrd_register(thrd_a)` replaced with `thrd_create` from [`thrd_create`](#thrd_create).
+* `while (completed < 2) thrd_yield();` - this will be solved in the next section, [Blocking primitives](#blocking-primitives).
 The demo now uses only the public API, and worker functions look like normal C.
 
 ```c
