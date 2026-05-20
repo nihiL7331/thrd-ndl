@@ -164,27 +164,30 @@ int thrd_create(thrd_t* out_thread, void (*func)(void)) {
 noreturn void thrd_exit(void) {
   preempt_disable();
 
-  // make the exiting thread dead
-  curr_thrd->state = THRD_DEAD;
+  if (curr_thrd->join_queue_hd != NULL) {
+    // make the exiting thread dead
+    curr_thrd->state = THRD_DEAD;
 
-  // push it onto the dead queue
-  curr_thrd->next = dead_queue_hd;
-  dead_queue_hd = curr_thrd;
+    // push it onto the dead queue
+    curr_thrd->next = dead_queue_hd;
+    dead_queue_hd = curr_thrd;
 
-  tcb_t* awake_thrd = curr_thrd->join_queue_hd;
+    tcb_t* awake_thrd = curr_thrd->join_queue_hd;
 
-  // set all the joined threads to ready so they can run
-  while (awake_thrd != NULL) {
-    tcb_t* next_thrd = awake_thrd->next;
+    // set all the joined threads to ready so they can run
+    while (awake_thrd != NULL) {
+      tcb_t* next_thrd = awake_thrd->next;
 
-    awake_thrd->state = THRD_READY;
-    thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
+      awake_thrd->state = THRD_READY;
+      thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
 
-    awake_thrd = next_thrd;
-  }
+      awake_thrd = next_thrd;
+    }
 
-  curr_thrd->join_queue_hd = NULL;
-  curr_thrd->join_queue_tl = NULL;
+    curr_thrd->join_queue_hd = NULL;
+    curr_thrd->join_queue_tl = NULL;
+  } else
+    curr_thrd->state = THRD_ZOMBIE;
 
   // here preempt is enabled before yield,
   // because the thread dies in that yield
@@ -203,8 +206,14 @@ int thrd_join(thrd_t thrd) {
 
   preempt_disable();
 
-  if (cast_thrd->state == THRD_DEAD) {
+  if (cast_thrd->state == THRD_ZOMBIE) {
+    cast_thrd->state = THRD_DEAD;
+
+    cast_thrd->next = dead_queue_hd;
+    dead_queue_hd = cast_thrd;
+
     preempt_enable();
+
     return THRD_SUCCESS;
   }
 

@@ -7,6 +7,7 @@ typedef enum {
   THRD_READY,
   THRD_RUNNING,
   THRD_DEAD,
+  THRD_ZOMBIE,
   THRD_BLOCKED,
   THRD_SLEEPING,
 } thrd_state_t;
