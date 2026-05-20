@@ -2146,6 +2146,147 @@ Condition variable wakes carry no ownership, which is why they need a paired mut
   <p><em>Ownership during a contended <code>mutex_lock</code>/<code>mutex_unlock</code> cycle. The owner field passes directly from <code>A</code> to <code>B</code> at the unlock moment, it's never <code>NULL</code> which is what prevents a third thread from barging in and stealing the mutex between unlock and <code>B</code>'s resume.</em></p>
 </div>
 
+#### Condition variables
+
+Mutexes solve the problem of simultaneous access to shared state, but they don't solve the problem of waiting for the state to change.
+
+Consider this scenario: thread `A` wants to pop an item from a shared queue. 
+It locks the mutex, sees the queue is empty, and unlocks it.
+What could it do next?
+It could yield and check again later, but that's wasting CPU cycles on the ready queue just to check an empty list.
+
+We want the thread to instead park itself entirely until another thread pushes an item onto the shared queue.
+This is what the **condition variable** is responsible for.
+It provides a wait queue where threads can sleep until another thread explicitly signals that a specific condition might now be true.
+
+First, let's add the struct and function declarations to the public header, `include/thrd_ndl/thrd_ndl.h`:
+
+```c
+typedef struct {
+  thrd_t wait_queue_hd; // head of threads parked on this condition
+  thrd_t wait_queue_tl; // tail of threads parked on this condition
+} cond_t;
+
+int cond_init(cond_t* cond);
+int cond_wait(cond_t* cond, mutex_t* mutex);
+int cond_signal(cond_t* cond);
+int cond_bcast(cond_t* cond);
+```
+
+We'll place the implementation in a new file, `src/cond.c`.
+Just like `mutex_init`, `cond_init` is a simple zero-initializer.
+
+```c
+#include <thrd_ndl/thrd_ndl.h>
+#include <string.h>
+
+int cond_init(cond_t* cond) {
+  if (cond == NULL)
+    return THRD_EINVAL;
+
+  memset(cond, 0, sizeof(*cond));
+
+  return THRD_SUCCESS;
+}
+```
+
+Now for the heart of the mechanism, `cond_wait`.
+
+A thread must always hold the associated mutex before calling `cond_wait`.
+Inside the function, the thread does a very specific sequence of actions:
+1. Enqueues itself on the condition variable's wait queue.
+2. Releases the mutex (so other threads can change the shared state).
+3. Yields.
+4. Upon waking up, it must reacquire the mutex before returning to the caller.
+
+Here's the implementation in `src/cond.c`:
+
+```c
+#include "scheduler.h" // include for 'get_curr_thrd', 'resume_thrd'
+#include "queue.h"     // include for 'thrd_enqueue', 'thrd_dequeue'
+
+int cond_wait(cond_t* cond, mutex_t* mutex) {
+  if (cond == NULL || mutex == NULL || mutex->owner != get_curr_thrd())
+    return THRD_EINVAL;
+
+  tcb_t* curr_thrd = get_curr_thrd();
+
+  thrd_enqueue(curr_thrd, (tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
+
+  curr_thrd->state = THRD_BLOCKED;
+
+  // unlock mutex so other thread can grab 
+  // the lock and change the shared data
+  mutex_unlock(mutex);
+
+  // park the thread
+  thrd_yield();
+
+  // lock back the mutex before returning to the caller
+  mutex_lock(mutex);
+
+  return THRD_SUCCESS;
+}
+```
+
+Finally, we need a way to make these sleeping threads wake up.
+`cond_signal` wakes up exactly one thread from the queue.
+`cond_bcast` wakes up all of them.
+Unlike `mutex_unlock`, waking a thread up from a cond variable doesn't transfer any ownership, it just moves them from the `cond_t`'s wait queue to the ready queue.
+
+Add these to `src/cond.c`:
+
+```c
+int cond_signal(cond_t* cond) {
+  if (cond == NULL)
+    return THRD_EINVAL;
+
+  if (cond->wait_queue_hd != NULL) {
+    tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
+    resume_thrd(signal_thrd);
+  }
+
+  return THRD_SUCCESS;
+}
+
+int cond_bcast(cond_t* cond) {
+  if (cond == NULL)
+    return THRD_EINVAL;
+
+  while (cond->wait_queue_hd != NULL) {
+    tcb_t* signal_thrd = thrd_dequeue((tcb_t**)&cond->block_queue_hd, (tcb_t**)&cond->block_queue_tl);
+    resume_thrd(signal_thrd);
+  }
+
+  return THRD_SUCCESS;
+}
+```
+
+To see how these pieces interact, let's trace the exact sequence of a wakeup:
+1. Thread `A` calls `cond_wait`. It drops the mutex, goes to sleep, and freezes mid-yield.
+2. Thread `B` acquires the mutex, changes the shared state, and calls `cond_signal`. `resume_thrd` pulls `A` off the condition wait queue and puts it on the ready queue.
+3. `B` unlocks the mutex and yields. The scheduler picks up `A`.
+4. `A` resumes inside `cond_wait` and immediately calls `mutex_lock`.
+
+The last step is the most important part.
+If `B` calls `cond_signal` but hasn't yet unlocked the mutex, `A` will wake up, attempt to lock the mutex, and immediately block again, this time on the mutex's wait queue.
+`cond_wait` only returns to the caller once the mutex is successfully reacquired.
+
+It's worth noting that another thread might grab the mutex first and change the state again between `A` waking up and actually acquiring the lock.
+For this reason, `cond_wait` should not be an `if` statement, rather it should be wrapped in a `while` loop that checks the condition on every wake, like so:
+
+```c
+mutex_lock(&mutex);
+
+while (queue_hd == NULL)
+  cond_wait(&cond, &mutex);
+
+// safe to pop
+mutex_unlock(&mutex);
+```
+
+With this covered, we can close out the section with a demo, as usual.
+
 ### Porting
 
 #### Windows
