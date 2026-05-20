@@ -1944,6 +1944,7 @@ int mutex_init(mutex_t* mutex);
 ```
 
 Create a new file, which will contain all of the implementations for this subsection, `src/mutex.c`.
+Add it to `CMakeLists.txt`.
 
 ```c
 #include <thrd_ndl/thrd_ndl.h>
@@ -2182,6 +2183,7 @@ int cond_bcast(cond_t* cond);
 ```
 
 We'll place the implementation in a new file, `src/cond.c`.
+Don't forget to add it to `CMakeLists.txt`.
 Just like `mutex_init`, `cond_init` is a simple zero-initializer.
 
 ```c
