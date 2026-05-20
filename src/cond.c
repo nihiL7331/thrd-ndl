@@ -47,7 +47,10 @@ int cond_wait(cond_t* cond, mutex_t* mutex) {
   return THRD_SUCCESS;
 }
 
-void cond_signal(cond_t* cond) {
+int cond_signal(cond_t* cond) {
+  if (cond == NULL)
+    return THRD_EINVAL;
+
   preempt_disable();
 
   if (cond->block_queue_hd != NULL) {
@@ -59,6 +62,8 @@ void cond_signal(cond_t* cond) {
   }
 
   preempt_enable();
+
+  return THRD_SUCCESS;
 }
 
 void cond_bcast(cond_t* cond) {
