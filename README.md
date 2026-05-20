@@ -139,7 +139,7 @@ Functions that return `int` use these codes:
 * `int mutex_init(mutex_t* mutex)` - initializes the mutex, must be called before first use. Returns `THRD_SUCCESS` or `THRD_EINVAL`.
 * `mutex_lock(mutex_t* mutex)` - acquires the `mutex`, blocking the caller if already held.
 * `int mutex_trylock(mutex_t* mutex)` - attempts to acquire `mutex` without blocking. Returns `THRD_SUCCESS` if acquired, `THRD_EBUSY` if already held.
-* `mutex_unlock(mutex_t* mutex)` - releases the `mutex` and wakes one waiting thread.
+* `int mutex_unlock(mutex_t* mutex)` - releases the `mutex` and wakes one waiting thread.  Returns `THRD_SUCCESS` if successfuly unlocked, returns `THRD_EINVAL` if the caller isn't the owner or `mutex` is `NULL`.
 
 ### Condition variables
 

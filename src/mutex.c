@@ -46,7 +46,10 @@ void mutex_lock(mutex_t* mutex) {
   thrd_yield();
 }
 
-void mutex_unlock(mutex_t* mutex) {
+int mutex_unlock(mutex_t* mutex) {
+  if (mutex == NULL || mutex->owner != get_curr_thrd())
+    return THRD_EINVAL;
+
   preempt_disable();
 
   // if the wait queue is empty,
@@ -54,17 +57,22 @@ void mutex_unlock(mutex_t* mutex) {
   if (mutex->wait_queue_hd == NULL) {
     mutex->owner = NULL;
     preempt_enable();
-    return;
+    return THRD_SUCCESS;
   }
 
   // if there's at least one thread waiting in the queue
   // then pop one thread off
   tcb_t* pop_thrd = thrd_dequeue((tcb_t**)&mutex->wait_queue_hd, (tcb_t**)&mutex->wait_queue_tl);
 
+  // make it the new mutex owner
+  mutex->owner = pop_thrd;
+
   // make it ready again and push it to ready queue
   resume_thrd(pop_thrd);
 
   preempt_enable();
+
+  return THRD_SUCCESS;
 }
 
 int mutex_trylock(mutex_t* mutex) {

@@ -35,7 +35,7 @@ void thrd_dump(void);
 
 int  mutex_init(mutex_t* mutex);
 void mutex_lock(mutex_t* mutex);
-void mutex_unlock(mutex_t* mutex);
+int  mutex_unlock(mutex_t* mutex);
 int  mutex_trylock(mutex_t* mutex);
 
 int  cond_init(cond_t* cond);
