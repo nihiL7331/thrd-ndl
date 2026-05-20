@@ -15,9 +15,9 @@ int cond_init(cond_t* cond) {
   return THRD_SUCCESS;
 }
 
-void cond_wait(cond_t* cond, mutex_t* mutex) {
-  if (cond == NULL || mutex == NULL)
-    return;
+int cond_wait(cond_t* cond, mutex_t* mutex) {
+  if (cond == NULL || mutex == NULL || mutex->owner != get_curr_thrd())
+    return THRD_EINVAL;
 
   preempt_disable();
 
@@ -43,6 +43,8 @@ void cond_wait(cond_t* cond, mutex_t* mutex) {
 
   // lock back the mutex
   mutex_lock(mutex);
+
+  return THRD_SUCCESS;
 }
 
 void cond_signal(cond_t* cond) {

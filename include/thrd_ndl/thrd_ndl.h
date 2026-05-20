@@ -39,7 +39,7 @@ int  mutex_unlock(mutex_t* mutex);
 int  mutex_trylock(mutex_t* mutex);
 
 int  cond_init(cond_t* cond);
-void cond_wait(cond_t* cond, mutex_t* mutex);
+int  cond_wait(cond_t* cond, mutex_t* mutex);
 void cond_signal(cond_t* cond);
 void cond_bcast(cond_t* cond);
 
