@@ -1856,6 +1856,300 @@ Under this implementation, it stays a `THRD_ZOMBIE` forever, leaking its TCB and
 A solution to this would be to introduce a `thrd_detach` function to tell the scheduler that a thread will never be joined, allowing it to bypass the zombie state and clean itself up immediately.
 This is out of scope for this implementation (for the time being).
 
+#### Mutexes
+
+Up to now, when threads shared state (like the `completed` counter from the [A lifecycle-aware demo](#a-lifecycle-aware-demo) section) we got away with it, but only because the read-modify-write had no yield between its halves.
+Once a yield can land there, the writes race.
+
+Consider this simple snippet:
+
+```c
+#include <thrd_ndl/thrd_ndl.h>
+#include <stdio.h>
+
+static int counter = 0;
+
+static void func_thrd(void) {
+  int local_counter = counter;
+
+  thrd_yield();
+
+  counter = local_counter + 1;
+}
+
+int main(void) {
+  if (thrd_init() != THRD_SUCCESS)
+    return 1;
+
+  thrd_t thrd_a, thrd_b;
+
+  if (thrd_create(&thrd_a, func_thrd) != THRD_SUCCESS)
+    return 1;
+  if (thrd_create(&thrd_b, func_thrd) != THRD_SUCCESS)
+    return 1;
+
+  thrd_join(thrd_a);
+  thrd_join(thrd_b);
+
+  printf("%d\n", counter);
+}
+```
+
+You may think that the output will be plain `2`.
+Well, you'd be wrong.
+Due to a race condition, this will output `1`.
+
+Here's the exact mechanism that occurred:
+1. Thread A reads `counter = 0` into its local, it yields.
+2. Thread B reads `counter = 0` into its local, it also yields.
+3. A resumes after `thrd_yield`, writes `counter = 1`.
+4. B resumes after `thrd_yield`, also writes `counter = 1`.
+
+The `thrd_yield` here is explicit only to make the race reproducible.
+In real code, any procedure call that internally yields can land between the read and the write - and once [Preemption](#preemption) is finished, even individual instructions can be interrupted.
+The mutex closes that window regardless of where the yield actually happens.
+
+This is also a great example that cooperative scheduling doesn't eliminate races, it just narrows where they can happen.
+
+A mutex (**MUT**ual **EX**clusion device) serializes access to shared state.
+Only one thread can hold it at a time, and any other thread that tries to acquire it blocks until the holder releases.
+
+Unlike threads, mutexes own no OS resources - they're just an owner pointer and a wait queue.
+The caller allocates them wherever the data they protect lives, the wait queue lives on the primitive itself rather than on any TCB, and the API has `mutex_init` but no `mutex_destroy`, since there's nothing internal to destroy.
+The trade-off is that the caller must keep the mutex alive while any thread might be parked on it, similar to the lifetime contract from `thrd_join`.
+This matches POSIX [`pthread_mutex_t`](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3.html).
+
+As always, begin with the declaration - this time in the public API header, `include/thrd_ndl/thrd_ndl.h`:
+
+```c
+typedef struct {
+  thrd_t owner;         // 'NULL' when no owner, otherwise the holding thread
+  thrd_t wait_queue_hd; // head of threads parked on this mutex
+  thrd_t wait_queue_tl; // tail of threads parked on this mutex
+} mutex_t;
+```
+
+The mutex struct lives in the public header so callers can allocate it, but its fields reference the opaque `thrd_t`, since callers never read or write these directly.
+
+Now we'll walk over every mutex-related procedure that will be exposed in the public API.
+We'll begin with the most trivial one: `mutex_init`.
+
+Its mission will be to zero the owner, zero the queue heads, and validate non-`NULL`.
+Notice, that it essentially does the same thing as `mutex_t m = {0};` would do.
+This function is mainly here for the symmetry with upcoming [Condition variables](#condition-variables).
+
+Begin with declaring it in the public header, `include/thrd_ndl/thrd_ndl.h`
+
+```c
+int mutex_init(mutex_t* mutex);
+```
+
+Create a new file, which will contain all of the implementations for this subsection, `src/mutex.c`.
+
+```c
+#include <thrd_ndl/thrd_ndl.h>
+#include <string.h>
+
+int mutex_init(mutex_t* mutex) {
+  if (mutex == NULL)
+    return THRD_EINVAL;
+
+  memset(mutex, 0, sizeof(*mutex));
+
+  return THRD_SUCCESS;
+}
+```
+
+Next on our list is `mutex_trylock`.
+We'll cover `mutex_trylock` before `mutex_lock`, because `mutex_lock` will be a wrapper over `mutex_trylock`.
+
+Declare it in the public header:
+
+```c
+int mutex_trylock(mutex_t* mutex);
+```
+
+We want `mutex_trylock` to lock a mutex if it's possible. Otherwise we'll return a new code - we'll call it `THRD_EBUSY`:
+
+```c
+#define THRD_EBUSY 4
+```
+
+`mutex_trylock` observes the owner and either claims it for `curr_thrd` or reports busy.
+However `curr_thrd` is a static variable inside `src/scheduler.c`, and we want to access it here.
+We need to expose a getter to it.
+Create a file `src/scheduler.h` and place this in it:
+
+```c
+#pragma once
+
+#include "tcb.h"
+
+tcb_t* get_curr_thrd(void);
+```
+
+Update `src/scheduler.c` with this simple function:
+
+```c
+// ...
+
+tcb_t* get_curr_thrd(void) {
+  return curr_thrd;
+}
+```
+
+Finally, we can implement `mutex_trylock` in `src/mutex.c`:
+
+```c
+#include "scheduler.h" // include for 'get_curr_thrd'
+
+int mutex_trylock(mutex_t* mutex) {
+  if (mutex->owner == NULL) {
+    mutex->owner = get_curr_thrd();
+    return THRD_SUCCESS;
+  }
+
+  return THRD_EBUSY;
+}
+```
+
+The check->set is atomic because the scheduler is cooperative.
+There's no `thrd_yield` running between the read of `mutex->owner` and the write to it, so no other thread can observe the in-between state.
+This is a correctness benefit we get for free from the M:1 model, and one we'll have to pay back explicitly in the [Preemption](#preemption) section by disabling preemption around critical sections like this one.
+
+With `mutex_trylock` implemented, we can handle its older brother now - `mutex_lock`.
+Thanks to `mutex_trylock`, this implementation will be simple:
+1. Try locking via `mutex_trylock`, if succeeded - return.
+2. Otherwise mark the `curr_thrd->state` as `THRD_BLOCKED`, enqueue on mutex's wait queue, yield.
+3. On wake, don't recall `mutex_trylock`, since `mutex_unlock` set us as owner before waking us. Unlock transfers ownership directly to a waiting thread rather than clearing the field and letting the wakee re-race. This lets `mutex_lock` skip the retry.
+
+As always, update the public header:
+
+```c
+void mutex_lock(mutex_t* mutex);
+```
+
+And the implementation in `src/mutex.c`:
+
+```c
+#include "queue.h" // include for 'thrd_enqueue'
+
+void mutex_lock(mutex_t* mutex) {
+  if (mutex_trylock(mutex) == THRD_SUCCESS)
+    return;
+
+  tcb_t* curr_thrd = get_curr_thrd();
+  curr_thrd->state = THRD_BLOCKED;
+
+  thrd_enqueue(curr_thrd, (tcb_t**)&mutex->wait_queue_hd, (tcb_t**)&mutex->wait_queue_tl);
+
+  thrd_yield();
+}
+```
+
+We'll finish this section with `mutex_unlock`.
+Its responsibility is to:
+1. Validate the passed mutex,
+2. If wait queue is empty, then clear the owner and return,
+3. If wait queue is not empty, then dequeue head, set head as the new owner, flip its state to `THRD_READY` and enqueue it onto the ready queue.
+
+Similarly to the `curr_thrd`, the ready queue is stored as a static variable inside `src/scheduler.c`.
+That's why we need to expose a helper inside the scheduler - it will be responsible for resuming a thread.
+We'll bring back the internal `src/scheduler.h`, which was deleted back in [`thrd_create`](#thrd_create). `cond_wait` in the next subsection will reuse it.
+Add this to the scheduler's header, `src/scheduler.h`:
+
+```c
+void resume_thrd(tcb_t* thrd);
+```
+
+Implement it in `src/scheduler.c` as so:
+
+```c
+void resume_thrd(tcb_t* thrd) {
+  if (thrd == NULL)
+    return;
+
+  thrd->state = THRD_READY;
+  thrd_enqueue(thrd, &rdy_queue_hd, &rdy_queue_tl);
+}
+```
+
+Now, going back to the `mutex_unlock` implementation, update the public header:
+
+```c
+int mutex_unlock(mutex_t* mutex);
+```
+
+And cover the implementation in `src/mutex.c`:
+
+```c
+#include "tcb.h" // include for 'tcb_t', 'THRD_READY'
+
+int mutex_unlock(mutex_t* mutex) {
+  if (mutex == NULL || mutex->owner != get_curr_thrd())
+    return THRD_EINVAL;
+
+  if (mutex->wait_queue_hd == NULL) {
+    mutex->owner = NULL;
+    return THRD_SUCCESS;
+  }
+
+  tcb_t* pop_thrd = thrd_dequeue((tcb_t**)&mutex->wait_queue_hd, (tcb_t**)&mutex->wait_queue_tl);
+  mutex->owner = pop_thrd;
+  resume_thrd(pop_thrd);
+
+  return THRD_SUCCESS;
+}
+```
+
+With the public API for mutexes handled, notice the unlocker doesn't clear the owner field when there's a waiter, it transfers ownership directly.
+The alternative would be to wake one waiter up, and let it call `mutex_trylock` itself when it runs.
+However, this leaves a window where a thread calling `mutex_lock` after the unlock (but before the waiter runs) could steal the mutex.
+The handoff approach guarantees FIFO fairness.
+
+Before walking through a contention scenario, a few edge cases worth knowing about:
+* Recursive lock by the same thread. It's currently undefined, the second `mutex_lock` calls `mutex_trylock`, sees a non-`NULL` owner, and blocks on a wait queue no one will empty. If no other thread is ready, the `_Exit(1)` branch from the [`Cleaning up dead threads`](#cleaning-up-dead-threads) subsection doubles as a deadlock detection. This library doesn't support this kind of locking, but POSIX exposes it via [`PTHREAD_MUTEX_RECURSIVE`](https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_mutexattr_settype.html).
+* Unlock from a non-owner returns `THRD_EINVAL` via the `mutex->owner != get_curr_thrd()` check. Without this check a non-holder could transfer ownership to a waiter, breaking the mutual exclusion.
+* Unlock of an unheld mutex returns `THRD_EINVAL` also via the `mutex->owner != get_curr_thrd()` check.
+* Freeing a mutex while threads are parked on it wait queue corrupts their state when `mutex_unlock` later wakes them, similarly to the `thrd_join` reclaim hazard, the caller must keep the mutex alive until no waiter can reference to it.
+* Don't call `memcpy` on `mutex_t`. It will get corrupted on the next enequeue, each mutex needs its own `mutex_init`.
+
+The woken waiter doesn't return immediately, it's just queued.
+The unlocker keeps running until it yields.
+From the waiter's perspective it was parked in `mutex_lock`'s yield call, and when the scheduler eventually picks it up, the yield returns and `mutex_lock` returns `THRD_SUCCESS`.
+The wake mechanism is identical to `thrd_join`'s, what's different is that the wake also carries ownership state with it.
+
+Putting the four operations together, here's what a typical contention sequence looks like.
+Assume `A` and `B` are both ready, `mutex` is freshly initialized.
+1. `A` calls `mutex_lock(&mutex)`. `mutex_trylock(&mutex)` sees `mutex->owner == NULL`, sets `mutex->owner = A`, returns `THRD_SUCCESS`. `mutex_lock` returns immediately, without blocking or yielding.
+2. `A` runs its critical section and yields.
+3. `B` is picked up by the scheduler and calls `mutex_lock(&mutex)`. `mutex_trylock(&mutex)` sees `mutex->owner == A`, returns `THRD_EBUSY`.
+4. `B` sets its state to `THRD_BLOCKED`, enqueues itself on `mutex`'s wait queue and calls `thrd_yield`. The `if (state == THRD_RUNNING)` guard skips the ready re-enqueue.
+5. Scheduler resumes `A`. `B` meanwhile is frozen mid-yield, exactly as the joiner was in `thrd_join`.
+6. `A` finishes its critical section and calls `mutex_unlock(&mutex)`. `B` is dequeues from the wait queue, set as the new mutex owner, flipped to `THRD_READY` and enqueued on the ready queue.
+7. `A` keeps running, eventually yields.
+8. Scheduler picks `B` from the ready queue. `thrd_switch` resumes `B` inside the `thrd_yield` from step 4, yield returns into `mutex_lock`, which returns. `B` is now the owner, and never had to retry the lock.
+
+Two things change compared to `thrd_join`.
+First, the wait queue lives on the primitive (the mutex struct), not on a TCB, so that any number of mutexes can exist independently, and a thread can park on whichever one it tries to acquire.
+Second, the wake doesn't just unpark the waiter.
+It also transfers ownership along with the wake, so the woken thread doesn't have to retry `mutex_trylock`.
+This is what avoided the constant wake-storm mentioned earlier.
+The next subsection, [Condition variables](#condition-variables), keeps the first property and drops the second.
+Condition variable wakes carry no ownership, which is why they need a paired mutex to fill the gap.
+
+<div align="center">
+  <picture>
+      <source media="(prefers-color-scheme: dark)"
+    srcset="docs/assets/mutex_dark.svg">
+      <source media="(prefers-color-scheme: light)"
+    srcset="docs/assets/mutex_light.svg">
+      <img alt="mutex scenario walkthrough" src="docs/assets/mutex_dark.svg">
+  </picture>
+
+  <p><em>Ownership during a contended <code>mutex_lock</code>/<code>mutex_unlock</code> cycle. The owner field passes directly from <code>A</code> to <code>B</code> at the unlock moment, it's never <code>NULL</code> which is what prevents a third thread from barging in and stealing the mutex between unlock and <code>B</code>'s resume.</em></p>
+</div>
+
 ### Porting
 
 #### Windows
