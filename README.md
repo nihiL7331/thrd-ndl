@@ -3623,6 +3623,90 @@ else()
 endif()
 ```
 
+#### ARM64 `ret` differences and the trampoline
+
+On x86_64, the `ret` instruction pops the target address directly off the top of the stack.
+That's why we pushed `tcb_wrap` onto the stack in `tcb_init`.
+
+ARM64 doesn't work this way.
+The `ret` instruction doesn't look at the stack at all, instead it jumps to whatever address is stored in the `x30` register.
+
+When the ARM64 `thrd_switch` finishes restoring registers, it loads `x30` from the saved stack frame.
+If we want a new thread to start executing, we have to place our starting address into the `x30` slot of our fake stack frame.
+
+But there is a catch.
+In ARM64, functions expect their starting context to be perfectly clean, but we are jumping out of a context switch.
+To handle this cleanly, we use an assembly **trampoline**.
+We store the `tcb_wrap` function in some arbitrary callee-saved register, e.g. `x19`.
+We point `x30` to a tiny assembly function called `thrd_tramp`, which will just branch to the address stored in `x19`.
+
+Add this to the `src/arch/arm64/context_arm64.S` file:
+
+```gas
+#ifdef __APPLE__
+  #define SYM_SWITCH _thrd_switch
+  #define SYM_TRAMP  _thrd_tramp
+#else
+  #define SYM_SWITCH thrd_switch
+  #define SYM_TRAMP  thrd_tramp
+#endif
+
+// context switch asm...
+
+  .global SYM_TRAMP
+
+SYM_TRAMP:
+  br x19
+```
+
+To support it across all architectures, we need to update the preprocessor directives in `src/tcb.c` to construct the correct stack frame shape:
+
+```c
+#ifdef __aarch64__
+  #define CALLEE_REG_CNT 12
+  #define X19_REG_POS 10
+  #define X30_REG_POS 1
+  extern void thrd_tramp(void);
+#elif defined(_WIN32)
+  #define CALLEE_REG_CNT 8
+#else
+  #define CALLEE_REG_CNT 6
+#endif
+
+tcb_t* tcb_init(void (*entry)(void)) {
+  // stack alloc ...
+
+  tcb->user_proc = entry;
+
+  size_t size  = THRD_STACK_SIZE + page_size();
+  uint64_t* sp = (uint64_t*)((uint8_t*)tcb->bsp + size);
+
+  *(--sp) = (uint64_t)thrd_exit; // push the cleanup function (align + fail-safe)
+
+#ifdef __aarch64__
+  *(--sp) = 0;                  // dummy value for align
+#else
+  *(--sp) = (uint64_t)tcb_wrap; // jump to the wrapper, not 'entry'
+#endif
+
+  sp -= CALLEE_REG_CNT; // space for callee-saved registers
+  memset(sp, 0, CALLEE_REG_CNT * sizeof(void*));
+
+#ifdef __aarch64__
+  sp[X19_REG_POS] = (uint64_t)tcb_wrap;
+  sp[X30_REG_POS] = (uint64_t)thrd_tramp;
+#endif
+
+  tcb->rsp   = sp;
+  tcb->state = THRD_READY;
+  return tcb;
+}
+```
+
+By storing `tcb_wrap` in `x19` and returning into `thrd_tramp`, we cleanly jump from the assembly domain back into the unified C lifecycle wrapper, abstracting away the architecture differences from the scheduler.
+
+The complete code for this section lives in [tutorial/section7/](tutorial/section7/)
+
 ---
 
 ## Roadmap
