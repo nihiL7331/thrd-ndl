@@ -2745,10 +2745,12 @@ Because it's a min-heap, the earliest/closest wakeup time is at `heap_peek(&slee
 If the current time is greater than or equal to that thread's wakeup time, it is time to wake it up.
 Furthermore, because multiple threads might have deadlines that passed while the CPU was busy, we must check it in a `while` loop until the root is a thread that is still sleeping.
 
-Let's update the beginning of `thrd_yield` in `src/scheduler.c`:
+Let's place it after the `THRD_RUNNING` check inside `thrd_yield` in `src/scheduler.c`:
 
 ```c
 void thrd_yield(void) {
+  // ...
+
   // stop the current thread from running
   if (curr_thrd->state == THRD_RUNNING) {
     curr_thrd->state = THRD_READY;
@@ -2766,7 +2768,7 @@ void thrd_yield(void) {
     sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
   }
 
-  // dead queue cleanup ...
+  // ...
 }
 ```
 
