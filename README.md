@@ -2822,6 +2822,79 @@ tcb_t* next_thrd = thrd_dequeue(&rdy_queue_hd, &rdy_queue_tl);
 By parking the OS thread with `os_sleep_ms`, we keep our scheduler's CPU usage at 0% while all virtual threads are asleep.
 When the OS wakes up, we immediately process the heap, move the awakened threads to the ready queue, and break out the loop to context switch to them.
 
+#### A sleep-aware demo
+
+With our heap and scheduler integrated, we can finally test `thrd_sleep`.
+
+We'll update our demo so `func_a` and `func_b` sleep for different durations.
+Instead of using mutexes to enforce strict alteration, we'll rely entirely on `thrd_sleep`.
+`func_a` will sleep for 200ms, and `func_b` will sleep for 100ms.
+
+Because `func_b` sleeps for half the time of `func_a`, we expect it to print twice as often.
+
+```c
+#include <stdio.h>
+#include <thrd_ndl/thrd_ndl.h>
+
+static void func_a(void) {
+  for (int i = 0; i < 3; ++i) {
+    printf("A: %d\n", i);
+    thrd_sleep(200);
+  }
+}
+
+static void func_b(void) {
+  for (int i = 0; i < 6; ++i) {
+    printf("B: %d\n", i);
+    thrd_sleep(100);
+  }
+}
+
+int main(void) {
+  if (thrd_init() != THRD_SUCCESS)
+    return 1;
+
+  thrd_t thrd_a, thrd_b;
+  if (thrd_create(&thrd_a, func_a) != THRD_SUCCESS)
+    return 1;
+  if (thrd_create(&thrd_b, func_b) != THRD_SUCCESS)
+    return 1;
+
+  thrd_join(thrd_a);
+  thrd_join(thrd_b);
+
+  printf("done\n");
+}
+```
+
+Rebuild exactly as before:
+
+```bash
+cmake -B build && cmake -build build && ./build/demo
+```
+
+The expected output differs here from the last demos.
+It shows the threads naturally interleaving based entirely on the monotonic clock and our min-heap.
+
+```
+A: 0
+B: 0
+B: 1
+A: 1
+B: 2
+B: 3
+A: 2
+B: 4
+B: 5
+done
+```
+
+If you watch this in the terminal, it won't instantly print.
+The 100ms/200ms pauses will be physically visible.
+Because of the `os_sleep_ms` call placed at the bottom of `thrd_yield`, the CPU usage during those pauses will sit at 0%.
+
+The complete code for this section lives in [tutorial/section5/](tutorial/section5/)
+
 ### Porting
 
 #### Windows
