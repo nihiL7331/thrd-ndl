@@ -152,21 +152,28 @@ Functions that return `int` use these codes:
 
 ## Implementation
 
-This section will serve as a tutorial, split into *sections*, each adding a certain functionality to your threading library.
-Each section produces a working library that can be compiled and tested. 
+This section will serve as a tutorial, split into chapters. 
+Each chapter adds a certain functionality to your threading library and produces a working codebase that can be compiled and tested.
 Feel free to experiment after finishing each section.
 
-Up until the last section, [Preemption](#preemption), the library is purely cooperative, meaning that a single thread can run indefinitely, unless explicitly told to stop by calling `thrd_yield`.
+Up until the [Preemption](guide/06-preemption/README.md) chapter, the library is purely cooperative, meaning that a single thread can run indefinitely, unless explicitly told to stop by calling `thrd_yield`.
 This tutorial focuses solely on implementing *M:1* model threading.
 That means the whole process of this library runs on one OS thread, creating virtual threads.
 
 The tutorial expects a prior knowledge of the *C* language, as well as a deeper understanding of how the stack works.
 An ability to read *assembly* is also recommended. 
-The final code can be found in the [src/](src/) directory.
-Each section has its source code in the corresponding `layerX` directory.
 
-This entire section will use `x86_64` as the primary example, with the `ARM64` covered at the end.
-Similarly, it targets Linux/macOS, the (limited) Windows port is covered at the end, both in the [Porting](#porting) section.
+The step-by-step educational guide, along with a snapshot of the code at each step, can be found in the [guide/](guide/) directory:
+0. [Build setup](guide/00-build-setup/README.md)
+1. [Context switching](guide/01-context-switching/README.md)
+2. [Cooperative scheduling](guide/02-cooperative-scheduling/README.md)
+3. [Thread lifecycle](guide/03-thread-lifecycle/README.md)
+4. [Blocking primitives](guide/04-blocking-primitives/README.md)
+5. [Sleep and the heap](guide/05-sleep-and-the-heap/README.md)
+6. [Preemption](guide/06-preemption/README.md)
+7. [Porting](guide/07-porting/README.md)
+
+<div align="center"><p><em>This guide uses `x86_64` on Linux/macOS as the primary example. The Windows and ARM64 ports are covered at the very end in the [Porting](guide/07-porting/README.md) chapter. The final, complete source code of the entire library lives in the [src/](src/) directory.</em></p></div>
 
 ---
 
