@@ -16,9 +16,7 @@
   #include <signal.h>
   #include <sys/time.h>
   #include <stdio.h>
-  #include <stdlib.h>
   #include <string.h>
-
 #endif
 
 #define PREEMPT_TIMER_INTERVAL 7331
@@ -206,7 +204,7 @@ void timer_init(void) {
 
   if (sigaction(SIGVTALRM, &action, NULL) == -1) {
     perror("sigaction failed");
-    exit(1);
+    _Exit(1);
   }
 
   struct itimerval timer;
@@ -216,7 +214,7 @@ void timer_init(void) {
 
   if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1) {
     perror("setitimer failed");
-    exit(1);
+    _Exit(1);
   }
 #endif
 }
