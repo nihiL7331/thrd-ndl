@@ -514,7 +514,7 @@ Since `src/scheduler.h` only contained `thrd_register`, the file can be deleted 
 
 `thrd_exit` cleanly retires the current thread.
 It marks it as finished, hands control to the scheduler, and never returns to the caller.
-It's what the demo in [Cooperative scheduling](../section2/README.md) tried to achieve with `while (1) thrd_yield();`, and what the `tcb_init` padding slot has been waiting to point at.
+It's what the demo in [Cooperative scheduling](../02-cooperative-scheduling/README.md) tried to achieve with `while (1) thrd_yield();`, and what the `tcb_init` padding slot has been waiting to point at.
 
 The intuition is simple.
 `thrd_exit` frees the dying thread's TCB (back to the pool) and its stack (via `os_free_stack`), then yields.
@@ -738,7 +738,7 @@ This section got rid of most of the hacks present in the last demo.
 Going through the last demo, we had:
 * `while (1) thrd_yield();` after each thread's loop - removed. Workers now `return` normally, using the implicit-exit trick from the [`thrd_exit` and the dead queue](#thrd_exit-and-the-dead-queue) subsection.
 * `tcb_init(func_a); thrd_register(thrd_a)` replaced with `thrd_create` from [`thrd_create`](#thrd_create).
-* `while (completed < 2) thrd_yield();` - this will be solved in the next section, [Blocking primitives](../section4/README.md).
+* `while (completed < 2) thrd_yield();` - this will be solved in the next section, [Blocking primitives](../04-blocking-primitives/README.md).
 The demo now uses only the public API, and worker functions look like normal C.
 
 ```c
@@ -804,4 +804,4 @@ Notice that now when `func_a` falls off the end, its `ret` pops `thrd_exit`'s ad
 The yield's cleanup loop skips the just-exited thread (it's still `curr_thrd`), but the next yield by another thread removes it.
 Threads are freed one yield after they exit.
 
-**[<| prev: Cooperative scheduling](../section2/README.md)** | **[next: Blocking primitives |>](../section4/README.md)**
+**[<| prev: Cooperative scheduling](../02-cooperative-scheduling/README.md)** | **[next: Blocking primitives |>](../04-blocking-primitives/README.md)**

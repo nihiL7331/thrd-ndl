@@ -512,4 +512,4 @@ tcb_t* tcb_init(void (*entry)(void)) {
 
 By storing `tcb_wrap` in `x19` and returning into `thrd_tramp`, we cleanly jump from the assembly domain back into the unified C lifecycle wrapper, abstracting away the architecture differences from the scheduler.
 
-**[<| prev: Preemption](../section5/README.md)**
+**[<| prev: Preemption](../06-preemption/README.md)**

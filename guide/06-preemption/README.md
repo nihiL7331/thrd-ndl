@@ -86,7 +86,7 @@ int thrd_init(void) {
 
 From that moment on, every ~7ms the OS will interrupt the running thread, push a signal frame onto its stack, and jump to `signal_handler`, which yields to the next thread.
 
-The Windows implementation will use a completely different architecture, because Windows doesn't have POSIX signals. It's covered in the [Porting](../section7/README.md) section.
+The Windows implementation will use a completely different architecture, because Windows doesn't have POSIX signals. It's covered in the [Porting](../07-porting/README.md) section.
 
 #### Protecting the scheduler
 
@@ -290,4 +290,4 @@ done
 The OS timer forcefully takes away the control from the infinite loop every ~7ms, checks the sleep queue, sees that `thrd_a` isn't ready yet, and gives back the control to the greedy loop.
 But once 100ms passes, `thrd_a` is woken up, scheduled, prints it message, and goes back to sleep.
 
-**[<| prev: Sleep and the heap](../section5/README.md)** | **[next: Porting |>](../section7/README.md)**
+**[<| prev: Sleep and the heap](../05-sleep-and-the-heap/README.md)** | **[next: Porting |>](../07-porting/README.md)**

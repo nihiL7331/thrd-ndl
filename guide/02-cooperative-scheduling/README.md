@@ -150,7 +150,7 @@ When this thread is later rescheduled, `thrd_switch` returns into the middle of 
 
 ## Making `thrd_switch` internal
 
-Back in [Context switching](../section1/README.md), we noted that `thrd_switch` will eventually become internal. With `thrd_yield` now wrapping it, we can deliver on that promise.
+Back in [Context switching](../01-context-switching/README.md), we noted that `thrd_switch` will eventually become internal. With `thrd_yield` now wrapping it, we can deliver on that promise.
 Remove the `thrd_switch` declaration from `include/thrd_ndl/thrd_ndl.h`.
 At the top of the `src/scheduler.c` file, you can now locally forward-declare `thrd_switch`:
 ```c
@@ -217,14 +217,14 @@ int thrd_init(void) {
 }
 ```
 We don't free the main thread's TCB, since it lives for the lifetime of the program.
-The pool allocator in [Thread lifecycle](../section3/README.md) will replace it anyway.
+The pool allocator in [Thread lifecycle](../03-thread-lifecycle/README.md) will replace it anyway.
 
 ## Registering workers
 
 The main thread is initialized and `thrd_yield` knows the ready queue, but nothing currently puts threads onto it.
 There's one piece missing: getting workers onto the ready queue.
 That's why we need to add one more temporary function: `thrd_register`.
-In the [Thread lifecycle](../section3/README.md) section, we will replace this temporary solution with `thrd_create`, which will combine `tcb_init` and `thrd_register` into one call.
+In the [Thread lifecycle](../03-thread-lifecycle/README.md) section, we will replace this temporary solution with `thrd_create`, which will combine `tcb_init` and `thrd_register` into one call.
 
 Because it's temporary, let's place it in a new internal header, `src/scheduler.h`.
 ```c
@@ -254,16 +254,16 @@ With the additions made in this section, worker functions no longer have to name
 The new functions call `thrd_yield` and have no idea who runs next.
 It's also worth pointing out that there's no `main_thrd` global variable needed, thanks to `thrd_init`.
 To set up each thread, we need two steps now: `tcb_init`, then `thrd_register`.
-This will be abstracted away via `thrd_create` in the next section, [Thread lifecycle](../section3/README.md).
+This will be abstracted away via `thrd_create` in the next section, [Thread lifecycle](../03-thread-lifecycle/README.md).
 
 However, workers can't cleanly terminate yet. 
 After the loop, we increment a shared `completed` counter and enter `while (1) thrd_yield();`, yielding forever instead of returning.
 Returning would fall off the end of the function and segfault.
-This will also be handled in the next section, [Thread lifecycle](../section3/README.md), with the addition of `thrd_exit`.
+This will also be handled in the next section, [Thread lifecycle](../03-thread-lifecycle/README.md), with the addition of `thrd_exit`.
 
 Main's `while (completed < 2) thrd_yield();` is the same kind of stopgap on the other end.
 It blocks by yielding because there's no `thrd_join` yet implemented to make it sleep until workers finish.
-[Blocking primitives](../section4/README.md) will implement that.
+[Blocking primitives](../04-blocking-primitives/README.md) will implement that.
 
 ```c
 #include <thrd_ndl/thrd_ndl.h>
@@ -332,4 +332,4 @@ done
 The next section will introduce `thrd_create` and `thrd_exit`, finishing the thread lifecycle.
 Beginning from the next section, the scheduler will have to handle a brand new queue: the dead queue.
 
-**[<| prev: Context switching](../section1/README.md)** | **[next: Thread lifecycle |>](../section3/README.md)**
+**[<| prev: Context switching](../01-context-switching/README.md)** | **[next: Thread lifecycle |>](../03-thread-lifecycle/README.md)**

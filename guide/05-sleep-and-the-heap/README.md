@@ -54,7 +54,7 @@ void os_sleep_ms(uint64_t time_ms) {
 }
 ```
 
-The Windows equivalent will be covered in the [Porting](../section7/README.md) section.
+The Windows equivalent will be covered in the [Porting](../07-porting/README.md) section.
 
 With our timekeeping primitives in place, we can move on to the data structure that will hold our sleeping threads, the binary min-heap.
 
@@ -91,7 +91,7 @@ typedef struct tcb {
 } tcb_t;
 ```
 
-Instead of hardcoding the heap directly for the scheduler, we'll build a generic, reusable heap structure (like we did with the [Pool allocator](../section3/README.md#pool-allocator)).
+Instead of hardcoding the heap directly for the scheduler, we'll build a generic, reusable heap structure (like we did with the [Pool allocator](../03-thread-lifecycle/README.md#pool-allocator)).
 It will take a backing array, a capacity, and a custom comparison function, allowing us to use it for TCBs.
 
 Let's declare the API in a new file, `src/heap.h`:
@@ -500,4 +500,4 @@ If you watch this in the terminal, it won't instantly print.
 The 100ms/200ms pauses will be physically visible.
 Because of the `os_sleep_ms` call placed at the bottom of `thrd_yield`, the CPU usage during those pauses will sit at 0%.
 
-**[<| prev: Blocking primitives](../section4/README.md)** | **[next: Preemption |>](../section6/README.md)**
+**[<| prev: Blocking primitives](../04-blocking-primitives/README.md)** | **[next: Preemption |>](../06-preemption/README.md)**

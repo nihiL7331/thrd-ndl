@@ -60,7 +60,7 @@ We'll expand on the TCB struct later.
 We also need to get the thread's stack.
 A keen eye might notice it's not in the TCB struct.
 For now, we'll allocate each thread's stack as a static array. 
-Section [Thread lifecycle](../tutorial/section3/README.md) introduces a proper stack allocator.
+Section [Thread lifecycle](../03-thread-lifecycle/README.md) introduces a proper stack allocator.
 
 But now, let's transfer the earned knowledge about the context switch to some assembly code.
 We'll create a `src/arch/x86_64/context_unix.S` file and create the following procedure.
@@ -113,12 +113,12 @@ extern void thrd_switch(thrd_t old_tcb, thrd_t new_tcb);
 #endif // THRD_NDL_H
 ```
 `thrd_switch` is really an internal primitive.
-Starting from the section [Cooperative scheduling](../section2/README.md), this will be abstracted away via `thrd_yield`.
+Starting from the section [Cooperative scheduling](../02-cooperative-scheduling/README.md), this will be abstracted away via `thrd_yield`.
 For now, we'll invoke it manually.
 
 ## Thread initialization
 
-Similarly, `tcb_init` will become an internal primitive starting from the section [Thread lifecycle](../section3/README.md).
+Similarly, `tcb_init` will become an internal primitive starting from the section [Thread lifecycle](../03-thread-lifecycle/README.md).
 Now we need to handle the thread initialization, so that `thrd_switch` works properly.
 Create the file `tcb.c`.
 It will handle the initialization of the TCB.
@@ -231,4 +231,4 @@ Without this, control would fall off the end of the function and segfault, becau
 Manual `thrd_switch` calls are the rawest possible form of cooperative scheduling.
 The next section will introduce `thrd_yield`, which delegates the decision of who runs next to the scheduler.
 
-**[<| prev: Build setup](../section0/README.md)** | **[next: Cooperative scheduling |>](../section2/README.md)**
+**[<| prev: Build setup](../00-build-setup/README.md)** | **[next: Cooperative scheduling |>](../02-cooperative-scheduling/README.md)**

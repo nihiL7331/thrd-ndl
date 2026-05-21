@@ -164,7 +164,7 @@ Putting both halves together, here's what the joiner experiences:
 7. The scheduler later picks joiner from the ready queue. `thrd_switch` restores its saved registers, and `ret` resumes inside `thrd_yield` right after the `thrd_switch` call.
 8. The joiner's `thrd_yield` returns into `thrd_join`, which then returns `THRD_SUCCESS` to its caller.
 
-If the joiner is the only candidate the scheduler has and nothing else is ready, `thrd_yield` will hit the `_Exit(1)` branch from [Cleaning up dead threads](../section3/README.md#cleaning-up-dead-threads) - that branch doubles as deadlock detection.
+If the joiner is the only candidate the scheduler has and nothing else is ready, `thrd_yield` will hit the `_Exit(1)` branch from [Cleaning up dead threads](../03-thread-lifecycle/README.md#cleaning-up-dead-threads) - that branch doubles as deadlock detection.
 
 <div align="center">
   <picture>
@@ -289,7 +289,7 @@ This is out of scope for this implementation (for the time being).
 
 ## Mutexes
 
-Up to now, when threads shared state (like the `completed` counter from the [A lifecycle-aware demo](../section3/README.md#a-lifecycle-aware-demo) section) we got away with it, but only because the read-modify-write had no yield between its halves.
+Up to now, when threads shared state (like the `completed` counter from the [A lifecycle-aware demo](../03-thread-lifecycle/README.md#a-lifecycle-aware-demo) section) we got away with it, but only because the read-modify-write had no yield between its halves.
 Once a yield can land there, the writes race.
 
 Consider this simple snippet:
@@ -337,7 +337,7 @@ Here's the exact mechanism that occurred:
 4. B resumes after `thrd_yield`, also writes `counter = 1`.
 
 The `thrd_yield` here is explicit only to make the race reproducible.
-In real code, any procedure call that internally yields can land between the read and the write - and once [Preemption](#preemption) is finished, even individual instructions can be interrupted.
+In real code, any procedure call that internally yields can land between the read and the write - and once [Preemption](../06-preemption/README.md) is finished, even individual instructions can be interrupted.
 The mutex closes that window regardless of where the yield actually happens.
 
 This is also a great example that cooperative scheduling doesn't eliminate races, it just narrows where they can happen.
@@ -447,7 +447,7 @@ int mutex_trylock(mutex_t* mutex) {
 
 The check->set is atomic because the scheduler is cooperative.
 There's no `thrd_yield` running between the read of `mutex->owner` and the write to it, so no other thread can observe the in-between state.
-This is a correctness benefit we get for free from the M:1 model, and one we'll have to pay back explicitly in the [Preemption](../section6/README.md) section by disabling preemption around critical sections like this one.
+This is a correctness benefit we get for free from the M:1 model, and one we'll have to pay back explicitly in the [Preemption](../06-preemption/README.md) section by disabling preemption around critical sections like this one.
 
 With `mutex_trylock` implemented, we can handle its older brother now - `mutex_lock`.
 Thanks to `mutex_trylock`, this implementation will be simple:
@@ -492,7 +492,7 @@ Its responsibility is to:
 
 Similarly to the `curr_thrd`, the ready queue is stored as a static variable inside `src/scheduler.c`.
 That's why we need to expose a helper inside the scheduler - it will be responsible for resuming a thread.
-We'll bring back the internal `src/scheduler.h`, which was deleted back in [`thrd_create`](../section3/README.md#thrd_create). `cond_wait` in the next subsection will reuse it.
+We'll bring back the internal `src/scheduler.h`, which was deleted back in [`thrd_create`](../03-thread-lifecycle/README.md#thrd_create). `cond_wait` in the next subsection will reuse it.
 Add this to the scheduler's header, `src/scheduler.h`:
 
 ```c
@@ -545,7 +545,7 @@ However, this leaves a window where a thread calling `mutex_lock` after the unlo
 The handoff approach guarantees FIFO fairness.
 
 Before walking through a contention scenario, a few edge cases worth knowing about:
-* Recursive lock by the same thread. It's currently undefined, the second `mutex_lock` calls `mutex_trylock`, sees a non-`NULL` owner, and blocks on a wait queue no one will empty. If no other thread is ready, the `_Exit(1)` branch from the [`Cleaning up dead threads`](../section3/README.md#cleaning-up-dead-threads) subsection doubles as a deadlock detection. This library doesn't support this kind of locking, but POSIX exposes it via [`PTHREAD_MUTEX_RECURSIVE`](https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_mutexattr_settype.html).
+* Recursive lock by the same thread. It's currently undefined, the second `mutex_lock` calls `mutex_trylock`, sees a non-`NULL` owner, and blocks on a wait queue no one will empty. If no other thread is ready, the `_Exit(1)` branch from the [`Cleaning up dead threads`](../03-thread-lifecycle/README.md#cleaning-up-dead-threads) subsection doubles as a deadlock detection. This library doesn't support this kind of locking, but POSIX exposes it via [`PTHREAD_MUTEX_RECURSIVE`](https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_mutexattr_settype.html).
 * Unlock from a non-owner returns `THRD_EINVAL` via the `mutex->owner != get_curr_thrd()` check. Without this check a non-holder could transfer ownership to a waiter, breaking the mutual exclusion.
 * Unlock of an unheld mutex returns `THRD_EINVAL` also via the `mutex->owner != get_curr_thrd()` check.
 * Freeing a mutex while threads are parked on it wait queue corrupts their state when `mutex_unlock` later wakes them, similarly to the `thrd_join` reclaim hazard, the caller must keep the mutex alive until no waiter can reference to it.
@@ -821,4 +821,4 @@ When `func_b` calls `cond_wait`, it drops `mutex` and sleeps.
 This allows `func_a` to acquire `mutex`, print its counter, change the turn and call `cond_signal`.
 `func_a` then drops `mutex`, and `func_b` wakes up, automatically reacquiring the lock to continue the cycle.
 
-**[<| prev: Thread lifecycle](../section3/README.md)** | **[next: Sleep and the heap |>](../section5/README.md)**
+**[<| prev: Thread lifecycle](../03-thread-lifecycle/README.md)** | **[next: Sleep and the heap |>](../05-sleep-and-the-heap/README.md)**
