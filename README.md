@@ -3106,6 +3106,8 @@ done
 The OS timer forcefully takes away the control from the infinite loop every ~7ms, checks the sleep queue, sees that `thrd_a` isn't ready yet, and gives back the control to the greedy loop.
 But once 100ms passes, `thrd_a` is woken up, scheduled, prints it message, and goes back to sleep.
 
+The complete code for this section lives in [tutorial/section6/](tutorial/section6/)
+
 ### Porting
 
 #### Windows
