@@ -2897,6 +2897,90 @@ Because of the `os_sleep_ms` call placed at the bottom of `thrd_yield`, the CPU 
 
 The complete code for this section lives in [tutorial/section5/](tutorial/section5/)
 
+### Preemption
+
+Up to now, the library has been fully cooperative.
+Threads must explicitly yield control by calling `thrd_yield` (or by calling `thrd_sleep`/`mutex_lock` which yield internally).
+
+Cooperative scheduling is highly efficient and naturally avoids many race conditions.
+But if a user writes a thread with an infinite loop, or just a long task that forgets to yield, it will fry the CPU forever.
+No other thread will ever run, and the whole program will hang.
+
+To build a robust system, we need [preemption](https://en.wikipedia.org/wiki/Preemption_(computing)): the ability to forcibly interrupt a running thread, take the CPU away from it, and hand it to someone else.
+
+#### The timer and the signal
+
+To forcibly pause a thread, we need the OS's help. On Unix-like systems, we can ask the OS to send our process a signal at a regular interval using a timer.
+
+We will use `ITIMER_VIRTUAL`.
+It only counts down while our process is actively in user space.
+When the timer hits zero, the OS fires a `SIGVTALRM` signal, pausing whatever instruction the current thread is executing to run a signal handler.
+
+That signal handler will simply run `thrd_yield`.
+
+Let's declare the functions in `src/platform.h`:
+
+```c
+void preempt_disable(void);
+void preempt_enable(void);
+void timer_init(void);
+```
+
+Now, let's implement the timer in `src/platform.c`.
+We will set the timer to some arbitrary value around 10ms.
+Since the `tv_usec` field expects microseconds, we need a value around 10000.
+Setting it to exactly 10ms might be less reliable, since it might perfectly sync with the host OS's internal scheduler ticks.
+That's why we'll use a prime number instead.
+
+```c
+#define PREEMPT_TIMER_INTERVAL 7331
+
+// ...
+
+static void signal_handler(int num) {
+  (void)num;
+  thrd_yield();
+}
+
+void timer_init(void) {
+  struct sigaction action;
+  memset(&action, 0, sizeof(action));
+  action.sa_handler = signal_handler;
+
+  if (sigaction(SIGVTALRM, &action, NULL) == -1) {
+    perror("sigaction failed");
+    exit(1);
+  }
+
+  struct itimerval timer;
+  memset(&timer, 0, sizeof(timer));
+  timer.it_value.tv_usec = PREEMPT_TIMER_INTERVAL;
+  timer.it_interval.tv_usec = PREEMPT_TIMER_INTERVAL;
+
+  if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1) {
+    perror("setitimer failed");
+    exit(1);
+  }
+}
+```
+
+We must call `timer_init` once inside `thrd_init`.
+Call it like so:
+
+```c
+int thrd_init(void) {
+  // ...
+
+  timer_init();
+
+  return THRD_SUCCESS;
+}
+```
+
+From that moment on, every ~7ms the OS will interrupt the running thread, push a signal frame onto its stack, and jump to `signal_handler`, which yields to the next thread.
+
+The Windows implementation will use a completely different architecture, because Windows doesn't have POSIX signals. It's covered in the [Porting](#porting) section.
+
 ### Porting
 
 #### Windows
