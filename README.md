@@ -2933,6 +2933,12 @@ Setting it to exactly 10ms might be less reliable, since it might perfectly sync
 That's why we'll use a prime number instead.
 
 ```c
+#include <string.h>            // include for 'memset'
+#include <thrd_ndl/thrd_ndl.h> // include for 'thrd_yield'
+#include <signal.h>            // include for 'sigaction'
+#include <sys/time.h>          // include for 'struct sigaction', 'struct itimerval'
+#include <stdio.h>             // include for 'perror'
+
 #define PREEMPT_TIMER_INTERVAL 7331
 
 // ...
@@ -2949,7 +2955,7 @@ void timer_init(void) {
 
   if (sigaction(SIGVTALRM, &action, NULL) == -1) {
     perror("sigaction failed");
-    exit(1);
+    _Exit(1);
   }
 
   struct itimerval timer;
@@ -2959,7 +2965,7 @@ void timer_init(void) {
 
   if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1) {
     perror("setitimer failed");
-    exit(1);
+    _Exit(1);
   }
 }
 ```
