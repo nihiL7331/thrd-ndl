@@ -231,4 +231,4 @@ Without this, control would fall off the end of the function and segfault, becau
 Manual `thrd_switch` calls are the rawest possible form of cooperative scheduling.
 The next section will introduce `thrd_yield`, which delegates the decision of who runs next to the scheduler.
 
-**[<| prev: Build setup](../section0/README.md)** | **[next: Cooperative scheduling |>](tutorial/section2/README.md)**
+**[<| prev: Build setup](../section0/README.md)** | **[next: Cooperative scheduling |>](../section2/README.md)**
