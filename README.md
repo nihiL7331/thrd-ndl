@@ -3543,7 +3543,85 @@ On Windows, the OS tracks the current stack via the [Thread Information Block](h
 Because here context switch bypasses the OS and doesn't update the TIB's stack bounds, large stack allocations that trigger `__chkstk`, structured exception handling, and some C runtime functions may misbehave.
 A complete Windows port requires either manually updating the TIB during `thrd_switch` or utilizing Windows [Fibers](https://learn.microsoft.com/en-us/windows/win32/procthread/fibers), but it's out of scope of this tutorial (for now).
 
-#### ARM64
+#### ARM64 context switch
+
+To run on ARM processors, the assembly context switch must change.
+
+Instead of pushing `%rbx`, `%rbp`, etc., the ARM64 calling convention requires us to preserve registers `x19-x29`.
+Here's the equivalent `src/arch/arm64/context_arm64.S` file:
+
+```gas
+#ifdef __APPLE__
+  #define SYM_SWITCH _thrd_switch
+#else
+  #define SYM_SWITCH thrd_switch
+#endif
+
+  .text
+  .align 4
+  .global SYM_SWITCH
+
+SYM_SWITCH:
+  /* push callee-saved registers onto the current stack
+     pre decrement sp by 16 */
+  stp x19, x20, [sp, #-16]!
+  stp x21, x22, [sp, #-16]!
+  stp x23, x24, [sp, #-16]!
+  stp x25, x26, [sp, #-16]!
+  stp x27, x28, [sp, #-16]!
+  stp x29, x30, [sp, #-16]!
+
+  /* save the current stack pointer into old_tcb
+     old_tcb->rsp is at offset 0
+     move to tmp register first */
+  mov x9, sp
+  str x9, [x0]
+
+  /* load the new stack pointer */
+  ldr x9, [x1]
+  mov sp, x9
+
+  /* pop the registers (reverse order to push)
+     post increment sp by 16 */
+  ldp x29, x30, [sp], #16
+  ldp x27, x28, [sp], #16
+  ldp x25, x26, [sp], #16
+  ldp x23, x24, [sp], #16
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+
+  /* jump to new thread */
+  ret
+```
+
+We also need to update `CALLEE_REG_CNT` for ARM64 in `src/tcb.c`:
+
+```c
+#ifdef __aarch64__
+  #define CALLEE_REG_CNT 12
+#elif defined(_WIN32)
+  #define CALLEE_REG_CNT 8
+#else
+  #define CALLEE_REG_CNT 6
+#endif
+```
+
+Now, we need to again update `CMakeLists.txt` to pick the correct asm file.
+Just replace the previous `if`-statements with this approach:
+
+```cmake
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+  if(WIN32)
+    set(ARCH_SRC src/arch/x86_64/context_win64.S)
+  else()
+    set(ARCH_SRC src/arch/x86_64/context_unix.S)
+  endif()
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64|ARM64)")
+  set(ARCH_SRC src/arch/arm64/context_arm64.S)
+else()
+  message(FATAL_ERROR "arch '${CMAKE_SYSTEM_PROCESSOR}' not supported")
+endif()
+```
 
 ---
 
