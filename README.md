@@ -172,7 +172,7 @@ Similarly, it targets Linux/macOS, the (limited) Windows port is covered at the 
 
 ## Roadmap
 
-- [ ] Split the README per section to `tutorial/sectionX/README.md`s.
+- [x] Split the README per section to `tutorial/sectionX/README.md`s.
 - [x] Cover the Porting section implementation in README.
 - [x] Cover the Preemption section implementation in README.
 - [x] Cover the Sleep and the heap section of README implementation.
