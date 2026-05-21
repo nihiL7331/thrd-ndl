@@ -2415,7 +2415,7 @@ By using an OS-level sleep, the scheduler can pause the entire process and yield
 Let's add two new helpers to `src/platform.h`:
 
 ```c
-#include <stdint.h>
+#include <stdint.h> // include for 'uint64_t'
 
 // ...
 
@@ -2469,6 +2469,10 @@ First, let's update our TCB to store its scheduled wake-up time.
 Open `src/tcb.h` and add `wakeup_time`:
 
 ```c
+#include <stdint.h> // include for 'uint64_t'
+
+// ...
+
 typedef struct tcb {
   void*        rsp;           // the stack pointer
   struct tcb*  next;          // intrusive next link for queue threading
@@ -2643,6 +2647,10 @@ typedef enum {
 Next, expose the new sleep function in the public API header, `include/thrd_ndl/thrd_ndl.h`:
 
 ```c
+#include <stdint.h> // include for 'uint64_t'
+
+// ...
+
 void thrd_sleep(uint64_t time_ms);
 ```
 
@@ -2698,6 +2706,8 @@ When a thread wants to sleep, it does the following:
 Add this implementation to `src/scheduler.c`:
 
 ```c
+#include "platform.h" // include for 'get_os_time'
+
 void thrd_sleep(uint64_t time_ms) {
   if (curr_thrd == NULL)
     return;
