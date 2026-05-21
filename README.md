@@ -3046,6 +3046,87 @@ You must also place `preempt_disable` and `preempt_enable` around the logic in `
 For the exact positioning check the source code in [tutorial/section6/](tutorial/section6/).
 Every piece of code that reads or modifies a queue or shared scheduler state is a critical section.
 
+#### The first-run problem
+
+By wrapping our scheduler functions in `preempt_disable` and `preempt_enable`, we protected the queues.
+But we accidentally introduced a deadlock for new threads.
+
+Look at this logic in `thrd_yield`:
+
+```c
+void thrd_yield(void) {
+  preempt_disable();
+
+  // ...
+
+  thrd_switch(old_thrd, curr_thrd);
+
+  preempt_enable();
+}
+```
+
+When `thrd_switch` resumes an existing thread, it returns from the assembly call, hits `preempt_enable`, and execution continues normally.
+But when `thrd_switch` jumps to a new thread, the assembly `ret` instruction jumps directly into the user's entry function.
+The new thread completely bypasses `preempt_enable`.
+The timer remains disabled, and preemption is permanently broken.
+
+To fix this, we will use a thread wrapper.
+Instead of pointing the initial stack frame at the user's function, we point it at a wrapper.
+
+First, update the TCB in `src/tcb.h` to store the user's function pointer:
+
+```c
+typedef struct tcb {
+  void*        rsp;                // the stack pointer
+  struct tcb*  next;               // intrusive next link for queue threading
+  thrd_state_t state;              // current scheduler state
+  void*        bsp;                // base stack pointer
+  struct tcb*  join_queue_hd;      // head of joiners waiting on this thread
+  struct tcb*  join_queue_tl;      // tail of joiners waiting on this thread
+  uint64_t     wakeup_time;        // the abs monotonic time this thread should wake
+  void         (*user_proc)(void); // the actual user entry function
+} tcb_t;
+```
+
+Now, create the wrapper function in `src/tcb.c`:
+
+```c
+#include "platform.h" // include for 'preempt_enable'
+
+static void tcb_wrap(void) {
+  preempt_enable();
+  get_curr_thrd()->user_proc();
+  thrd_exit();
+}
+```
+
+Finally, update `tcb_init` in `src/tcb.c` to use this wrapper.
+
+We still push `thrd_exit` onto the stack before `tcb_wrap`.
+Even though `tcb_wrap` explicitly calls `thrd_exit`, pushing this 8-byte value simulates the return address that a normal call instruction would leave on the stack.
+This ensures the stack pointer is 16-byte aligned when `tcb_wrap` begins executing.
+
+```c
+tcb_t* tcb_init(void (*entry)(void)) {
+  // ...
+
+  tcb->user_proc = entry;
+
+  size_t size  = THRD_STACK_SIZE + page_size();
+  uint64_t* sp = (uint64_t*)((uint8_t*)tcb->bsp + size);
+
+  *(--sp) = (uint64_t)thrd_exit; // push the cleanup function (align + fail-safe)
+  *(--sp) = (uint64_t)tcb_wrap;  // jump to the wrapper, not 'entry'
+
+  sp -= CALLEE_REG_CNT; // space for callee-saved registers
+  memset(stack, 0x0, CALLEE_REG_CNT * sizeof(void*));
+
+  tcb->rsp   = sp;
+  tcb->state = THRD_READY;
+  return tcb;
+}
+```
+
 #### A preemptive demo
 
 With preemption and critical sections in place, our threads act like actual OS threads.
