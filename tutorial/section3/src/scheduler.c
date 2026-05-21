@@ -42,12 +42,6 @@ void thrd_register(thrd_t thrd) {
 }
 
 void thrd_yield(void) {
-  // stop the current thread from running
-  if (curr_thrd->state == THRD_RUNNING) {
-    curr_thrd->state = THRD_READY;
-    rdy_enqueue(curr_thrd);
-  }
-
   tcb_t* prev_dead = NULL;
   tcb_t* curr_dead = dead_queue_hd;
 
@@ -70,6 +64,12 @@ void thrd_yield(void) {
       // free the tcb
       tcb_destroy(dead_thrd);
     }
+  }
+
+  // stop the current thread from running
+  if (curr_thrd->state == THRD_RUNNING) {
+    curr_thrd->state = THRD_READY;
+    rdy_enqueue(curr_thrd);
   }
 
   // pop the ready queue's head
