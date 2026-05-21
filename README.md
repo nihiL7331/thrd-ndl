@@ -2725,6 +2725,91 @@ But right now we have no option to wake it up.
 As it stands, a sleeping thread will stay on the heap forever.
 In the next subsection, we will update the scheduler loop to process this heap and actually wake threads up when their time arrives.
 
+#### Waking up, the sleeping scheduler
+
+A sleeping thread is completely off the CPU.
+It relies entirely on whichever thread that happens to be running `thrd_yield`, to notice that its deadline has passed and move it back to the ready queue.
+
+Every time a thread yields, we need to check the top of the sleep heap.
+Because it's a min-heap, the earliest/closest wakeup time is at `heap_peek(&sleep_queue)`.
+If the current time is greater than or equal to that thread's wakeup time, it is time to wake it up.
+Furthermore, because multiple threads might have deadlines that passed while the CPU was busy, we must check it in a `while` loop until the root is a thread that is still sleeping.
+
+Let's update the beginning of `thrd_yield` in `src/scheduler.c`:
+
+```c
+void thrd_yield(void) {
+  // stop the current thread from running
+  if (curr_thrd->state == THRD_RUNNING) {
+    curr_thrd->state = THRD_READY;
+    thrd_enqueue(curr_thrd, &rdy_queue_hd, &rdy_queue_tl);
+  }
+
+  uint64_t curr_time_ms = get_os_time();
+  tcb_t* sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
+  while (sleep_hd != NULL && curr_time_ms >= sleep_hd->wakeup_time) {
+    heap_pop(&sleep_queue);
+
+    sleep_hd->state = THRD_READY;
+    thrd_enqueue(sleep_hd, &rdy_queue_hd, &rdy_queue_tl);
+
+    sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
+  }
+
+  // dead queue cleanup ...
+}
+```
+
+This logic handles handles threads waking up, provided the CPU is constantly calling `thrd_yield`.
+But what happens if the ready queue is completely empty, the dead queue is clean, but there are threads sitting in the sleep heap waiting for their time to come?
+
+Currently, if the ready queue is empty, `thrd_yield` reaches the end, sees `next_thrd == NULL` and checks if we should exit:
+
+```c
+if (next_thrd == NULL && curr_thrd->state == THRD_DEAD)
+  _Exit(0);
+else if (next_thrd == NULL && curr_thrd->state != THRD_RUNNING)
+  _Exit(1);
+```
+
+If we hit this branch while threads are sleeping, the process crashes with `_Exit(1)`, even though it's just resting.
+To fix this, if the ready queue is empty, we calculate the time difference between now and the top of the sleep heap, and tell the underlying OS thread to sleep for exactly that duration.
+We can structure this cleanly by wrapping the dequeue logic in a `while (rdy_queue_hd == NULL)` loop in `thrd_yield`, replacing the old `if`-statements:
+
+```c
+while (rdy_queue_hd == NULL) {
+  // there's no one else waiting,
+  // keep running the thread
+  tcb_t* sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
+  if (sleep_hd != NULL) {
+    // wait here until thread wakes up,
+    curr_time_ms = get_os_time();
+
+    // prevent underflow if late
+    if (sleep_hd->wakeup_time > curr_time_ms)
+      os_sleep_ms(sleep_hd->wakeup_time - curr_time_ms);
+    
+    curr_time_ms = get_os_time();
+    while (sleep_hd != NULL && curr_time_ms >= sleep_hd->wakeup_time) {
+      tcb_t* awake_thrd = heap_pop(&sleep_queue);
+      awake_thrd->state = THRD_READY;
+      thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
+      sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
+    }
+
+  } else if (curr_thrd->state == THRD_DEAD) // all threads are dead, close the program
+    _Exit(0);
+  else // all threads blocked with no holders
+    _Exit(1);
+}
+
+// guaranteed to have a ready thread now
+tcb_t* next_thrd = thrd_dequeue(&rdy_queue_hd, &rdy_queue_tl);
+```
+
+By parking the OS thread with `os_sleep_ms`, we keep our scheduler's CPU usage at 0% while all virtual threads are asleep.
+When the OS wakes up, we immediately process the heap, move the awakened threads to the ready queue, and break out the loop to context switch to them.
+
 ### Porting
 
 #### Windows
