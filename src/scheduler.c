@@ -80,7 +80,10 @@ void thrd_yield(void) {
     if (sleep_hd != NULL) {
       // wait here until thread wakes up,
       curr_time_ms = get_os_time();
-      os_sleep_ms(sleep_hd->wakeup_time - curr_time_ms);
+
+      // prevent underflow if late
+      if (sleep_hd->wakeup_time > curr_time_ms)
+        os_sleep_ms(sleep_hd->wakeup_time - curr_time_ms);
       
       curr_time_ms = get_os_time();
       while (sleep_hd != NULL && curr_time_ms >= sleep_hd->wakeup_time) {
