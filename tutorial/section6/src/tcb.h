@@ -12,13 +12,14 @@ typedef enum {
 } thrd_state_t;
 
 typedef struct tcb {
-  void*        rsp;           // the stack pointer
-  struct tcb*  next;          // intrusive next link for queue threading
-  thrd_state_t state;         // current scheduler state
-  void*        bsp;           // base stack pointer
-  struct tcb*  join_queue_hd; // head of joiners waiting on this thread
-  struct tcb*  join_queue_tl; // tail of joiners waiting on this thread
-  uint64_t     wakeup_time;   // the abs monotonic time this thread should wake
+  void*        rsp;                // the stack pointer
+  struct tcb*  next;               // intrusive next link for queue threading
+  thrd_state_t state;              // current scheduler state
+  void*        bsp;                // base stack pointer
+  struct tcb*  join_queue_hd;      // head of joiners waiting on this thread
+  struct tcb*  join_queue_tl;      // tail of joiners waiting on this thread
+  uint64_t     wakeup_time;        // the abs monotonic time this thread should wake
+  void         (*user_proc)(void); // the actual user entry function
 } tcb_t;
 
 int  tcb_pool_init(void);
