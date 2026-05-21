@@ -173,7 +173,7 @@ The step-by-step educational guide, along with a snapshot of the code at each st
 6. [Preemption](guide/06-preemption/README.md)
 7. [Porting](guide/07-porting/README.md)
 
-<div align="center"><p><em>This guide uses `x86_64` on Linux/macOS as the primary example. The Windows and ARM64 ports are covered at the very end in the [Porting](guide/07-porting/README.md) chapter. The final, complete source code of the entire library lives in the [src/](src/) directory.</em></p></div>
+<div align="center"><p><em>This guide uses `x86_64` on Linux/macOS as the primary example. The Windows and ARM64 ports are covered at the very end in the Porting chapter. The final, complete source code of the entire library lives in the src/ directory.</em></p></div>
 
 ---
 
