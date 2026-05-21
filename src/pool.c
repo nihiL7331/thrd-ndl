@@ -49,17 +49,12 @@ void* pool_alloc(pool_t* pool) {
   if (pool == NULL)
     return NULL;
 
-  preempt_disable();
-
   if (pool->free_hd == NULL) {
-    preempt_enable();
     return NULL;
   }
 
   void* ret_head = pool->free_hd;
   pool->free_hd = *(void**)pool->free_hd;
-
-  preempt_enable();
 
   return ret_head;
 }
@@ -71,12 +66,8 @@ int pool_free(pool_t* pool, void* ptr) {
   if (pool->start_ptr == NULL)
     return THRD_EUNINIT;
 
-  preempt_disable();
-
   *((void**)ptr) = pool->free_hd;
   pool->free_hd = ptr;
-
-  preempt_enable();
 
   return THRD_SUCCESS;
 }
@@ -87,8 +78,6 @@ int pool_clear(pool_t* pool) {
 
   if (pool->start_ptr == NULL)
     return THRD_EUNINIT;
-
-  preempt_disable();
 
   uint8_t* raw_mem = (uint8_t*)pool->start_ptr;
   size_t num_chunks = pool->total_size / pool->chunk_size;
@@ -102,8 +91,6 @@ int pool_clear(pool_t* pool) {
   void** last_chunk = (void**)(raw_mem + (num_chunks - 1) * pool->chunk_size);
   *last_chunk = NULL;
   pool->free_hd = pool->start_ptr;
-
-  preempt_enable();
   
   return THRD_SUCCESS;
 }
