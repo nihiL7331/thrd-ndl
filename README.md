@@ -46,7 +46,9 @@ With threads, **multiple** tasks can make progress without waiting for each othe
 
 ## Quick start
 
-While learning about threads, you might want to write your own code. To build this library, use the following:
+Since the premise of the repository is a hands on experience, you'll probably write and test a bunch of code in the process.
+
+If you want to experiment with the complete, finished library before building it yourself in the tutorial, you can compile it like this:
 ```bash
 mkdir build && cd build
 cmake ..
@@ -54,9 +56,9 @@ cmake ..
 # build the static library (.a)
 cmake --build . --config Release
 ```
-After building the library, you can use the outputted file to link it against your own code, using something like:
+Once built, you can link the resulting static library aganist your own test code.
 ```bash
-gcc my_code.c libthrd_ndl.a
+gcc my_code.c build/libthrd_ndl.a -Iinclude -o my_code
 ```
 
 ### Hello, Thread!
