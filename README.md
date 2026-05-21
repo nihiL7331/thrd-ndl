@@ -3091,7 +3091,7 @@ typedef struct tcb {
 Now, create the wrapper function in `src/tcb.c`:
 
 ```c
-#include "platform.h" // include for 'preempt_enable'
+#include "scheduler.h" // include for 'get_curr_thrd'
 
 static void tcb_wrap(void) {
   preempt_enable();
@@ -3119,13 +3119,15 @@ tcb_t* tcb_init(void (*entry)(void)) {
   *(--sp) = (uint64_t)tcb_wrap;  // jump to the wrapper, not 'entry'
 
   sp -= CALLEE_REG_CNT; // space for callee-saved registers
-  memset(stack, 0x0, CALLEE_REG_CNT * sizeof(void*));
+  memset(sp, 0x0, CALLEE_REG_CNT * sizeof(void*));
 
   tcb->rsp   = sp;
   tcb->state = THRD_READY;
   return tcb;
 }
 ```
+
+It fixes the preemption bug, as well as establishes a clean, predictable lifecycle for every thread.
 
 #### A preemptive demo
 
