@@ -162,8 +162,8 @@ The *System V ABI* requires `%rsp` to be 8 mod 16 at function entry, but with on
 The dummy slot shifts everything by one word so the entry function gets a properly aligned stack.
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/fake_stack_dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/assets/fake_stack_light.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="../../docs/assets/fake_stack_dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="../../docs/assets/fake_stack_light.svg">
     <img alt="fake stack" src="../../docs/assets/fake_stack_dark.svg">
   </picture>
 
