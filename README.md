@@ -3046,6 +3046,66 @@ You must also place `preempt_disable` and `preempt_enable` around the logic in `
 For the exact positioning check the source code in [tutorial/section6/](tutorial/section6/).
 Every piece of code that reads or modifies a queue or shared scheduler state is a critical section.
 
+#### A preemptive demo
+
+With preemption and critical sections in place, our threads act like actual OS threads.
+Let's prove it by writing a notoriously bad thread that enters an infinite loop and refuses to yield.
+
+```c
+#include <stdio.h>
+#include <thrd_ndl/thrd_ndl.h>
+
+// the 'polite' thread
+static void func_a(void) {
+  for (int i = 0; i < 3; ++i) {
+    printf("polite thread running\n");
+    thrd_sleep(100);
+  }
+}
+
+// the 'greedy' thread
+static void func_b(void) {
+  printf("starting an infinite loop\n");
+  volatile int counter = 0;
+  while (1) {
+    counter++;
+  }
+}
+
+int main(void) {
+  if (thrd_init() != THRD_SUCCESS)
+    return 1;
+
+  thrd_t thrd_a, thrd_b;
+  if (thrd_create(&thrd_a, func_a) != THRD_SUCCESS)
+    return 1;
+  if (thrd_create(&thrd_b, func_b) != THRD_SUCCESS)
+    return 1;
+
+  thrd_join(thrd_a); // only waiting for the 'polite' thread
+
+  printf("done\n");
+}
+```
+Build it as always:
+
+```bash
+cmake -B build && cmake --build build && ./build/demo
+```
+
+The expected output is:
+
+```
+starting an infinite loop
+polite thread running
+polite thread running
+polite thread running
+done
+```
+
+The OS timer forcefully takes away the control from the infinite loop every ~7ms, checks the sleep queue, sees that `thrd_a` isn't ready yet, and gives back the control to the greedy loop.
+But once 100ms passes, `thrd_a` is woken up, scheduled, prints it message, and goes back to sleep.
+
 ### Porting
 
 #### Windows
