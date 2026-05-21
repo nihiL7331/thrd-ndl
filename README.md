@@ -2981,6 +2981,65 @@ From that moment on, every ~7ms the OS will interrupt the running thread, push a
 
 The Windows implementation will use a completely different architecture, because Windows doesn't have POSIX signals. It's covered in the [Porting](#porting) section.
 
+#### Protecting the scheduler
+
+However, we just introduced a massive concurrency problem.
+Because `SIGVTALRM` can interrupt the thread at any machine instruction, `thrd_yield` can now be called at any time, including while the scheduler is already inside `thrd_yield` or `mutex_lock`.
+
+Imagine a thread is inside `mutex_trylock(&mutex)`:
+1. It sees `mutex->owner == NULL`.
+2. The timer fires. The thread is preempted.
+3. Another thread runs, calls `mutex_lock(&mutex)`, sees `mutex->owner == NULL`, and claims it.
+4. The first thread resumes, executes `mutex->owner = get_curr_thrd()`, and overwrites the owner. Now two threads think they own the mutex.
+
+To prevent this, we need to protect our internal scheduler structures by temporarily disabling the timer during critical sections.
+We'll implement a recursive counter so we can safely nest these calls.
+Add this to `src/platform.c`:
+
+```c
+static volatile int preempt_cnt = 0;
+
+// ...
+
+void preempt_disable(void) {
+  if (preempt_cnt++ == 0) {
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGVTALRM);
+    sigprocmask(SIG_BLOCK, &sigset, NULL);
+  }
+}
+
+void preempt_enable(void) {
+  if (--preempt_cnt == 0) {
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGVTALRM);
+    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+  }
+}
+```
+
+By using `sigprocmask` to block `SIGVTALRM`, the OS will hold the signal pending until we unblock it.
+
+Now, we must wrap every internal scheduler operation.
+The most important one is `thrd_yield` itself.
+A thread entering `thrd_yield` disables preemption, does the scheduling work, switches context, and then the newly resumed thread reenables preemption on its way out:
+
+```c
+void thrd_yield(void) {
+  preempt_disable();
+
+  // ...
+
+  preempt_enable();
+}
+```
+
+You must also place `preempt_disable` and `preempt_enable` around the logic in `thrd_create`, `thrd_exit`, `thrd_join`, `thrd_sleep`, `resume_thrd`, `cond_wait`, `cond_signal`, `cond_bcast`, `mutex_lock`, `mutex_trylock` and `mutex_unlock`.
+For the exact positioning check the source code in [tutorial/section6/](tutorial/section6/).
+Every piece of code that reads or modifies a queue or shared scheduler state is a critical section.
+
 ### Porting
 
 #### Windows
