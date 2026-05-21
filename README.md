@@ -3537,6 +3537,12 @@ Replace the old `#define CALLEE_REG_CNT 6` with this:
 #endif
 ```
 
+#### Windows TIB
+
+On Windows, the OS tracks the current stack via the [Thread Information Block](https://en.wikipedia.org/wiki/Win32_Thread_Information_Block).
+Because here context switch bypasses the OS and doesn't update the TIB's stack bounds, large stack allocations that trigger `__chkstk`, structured exception handling, and some C runtime functions may misbehave.
+A complete Windows port requires either manually updating the TIB during `thrd_switch` or utilizing Windows [Fibers](https://learn.microsoft.com/en-us/windows/win32/procthread/fibers), but it's out of scope of this tutorial (for now).
+
 #### ARM64
 
 ---
