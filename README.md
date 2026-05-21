@@ -3711,7 +3711,8 @@ The complete code for this section lives in [tutorial/section7/](tutorial/sectio
 
 ## Roadmap
 
-- [ ] Cover the Porting section implementation in README.
+- [ ] Split the README per section to `tutorial/sectionX/README.md`s.
+- [x] Cover the Porting section implementation in README.
 - [x] Cover the Preemption section implementation in README.
 - [x] Cover the Sleep and the heap section of README implementation.
 - [x] Cover the Blocking primitives section of README implementation.
