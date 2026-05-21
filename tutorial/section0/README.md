@@ -19,4 +19,4 @@ target_include_directories(demo PRIVATE include src)
 ```
 We will update this file as each section progresses.
 
-**[Next: Context switching |>](../section1/README.md)**
+**[next: Context switching |>](../section1/README.md)**
