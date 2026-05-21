@@ -46,7 +46,7 @@ With threads, **multiple** tasks can make progress without waiting for each othe
 
 ## Quick start
 
-Since the premise of the repository is a hands on experience, you'll probably write and test a bunch of code in the process.
+Since the premise of the repository is a hands-on experience, you'll probably write and test a bunch of code in the process.
 
 If you want to experiment with the complete, finished library before building it yourself in the tutorial, you can compile it like this:
 ```bash
@@ -56,7 +56,7 @@ cmake ..
 # build the static library (.a)
 cmake --build . --config Release
 ```
-Once built, you can link the resulting static library aganist your own test code.
+Once built, you can link the resulting static library against your own test code.
 ```bash
 gcc my_code.c build/libthrd_ndl.a -Iinclude -o my_code
 ```
@@ -3119,7 +3119,7 @@ tcb_t* tcb_init(void (*entry)(void)) {
   *(--sp) = (uint64_t)tcb_wrap;  // jump to the wrapper, not 'entry'
 
   sp -= CALLEE_REG_CNT; // space for callee-saved registers
-  memset(sp, 0x0, CALLEE_REG_CNT * sizeof(void*));
+  memset(sp, 0, CALLEE_REG_CNT * sizeof(void*));
 
   tcb->rsp   = sp;
   tcb->state = THRD_READY;
