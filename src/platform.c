@@ -21,7 +21,7 @@
 
 #endif
 
-#define PREEMPT_TIMER_INTERVAL 13370
+#define PREEMPT_TIMER_INTERVAL 7331
 static volatile int preempt_cnt = 0;
 
 static inline size_t align_to_page(size_t size);
