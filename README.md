@@ -168,27 +168,6 @@ Each section has its source code in the corresponding `layerX` directory.
 This entire section will use `x86_64` as the primary example, with the `ARM64` covered at the end.
 Similarly, it targets Linux/macOS, the (limited) Windows port is covered at the end, both in the [Porting](#porting) section.
 
-### Build setup
-
-This project will use CMake as a build tool.
-Below is a `CMakeLists.txt` file that lists files we'll create during the [Context switching](#context-switching) section.
-`cmake -B build` will work after you've written all of them.
-```cmake
-cmake_minimum_required(VERSION 3.20)
-project(thrd_ndl_tutorial LANGUAGES C ASM)
-
-set(CMAKE_C_STANDARD 17)
-
-add_executable(demo
-  demo/demo.c
-  src/tcb.c
-  src/arch/x86_64/context_unix.S
-)
-
-target_include_directories(demo PRIVATE include src)
-```
-We will update this file as each section progresses.
-
 ### Context switching
 
 #### What's in the CPU state?
