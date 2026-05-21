@@ -11,16 +11,16 @@
 #include <inttypes.h>
 
 #ifdef __aarch64__
-  #define CALLEE_SAVED_REG_CNT 12
+  #define CALLEE_REG_CNT 12
   #define X19_REG_POS 10
   #define X30_REG_POS 1
 
   // required for implicit 'thrd_exit'
   extern void thrd_tramp(void);
 #elif defined(_WIN32)
-  #define CALLEE_SAVED_REG_CNT 8
+  #define CALLEE_REG_CNT 8
 #else
-  #define CALLEE_SAVED_REG_CNT 6
+  #define CALLEE_REG_CNT 6
 #endif
 
 static pool_t tcb_pool = {0};
@@ -75,8 +75,8 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   // %rbx, %rbp, %r12, %r13, %r14, %r15
   // additional %rdi and %rsi on windows
   // on arm: x19-x30
-  stack -= CALLEE_SAVED_REG_CNT;
-  memset(stack, 0x0, CALLEE_SAVED_REG_CNT * sizeof(void*));
+  stack -= CALLEE_REG_CNT;
+  memset(stack, 0x0, CALLEE_REG_CNT * sizeof(void*));
 
 #ifdef __aarch64__
   // since x19 is callee-saved,
