@@ -4,7 +4,6 @@
 #include <thrd_ndl/thrd_ndl.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <unistd.h>
 #include <inttypes.h>
 #include <stdnoreturn.h>
 #include "internal.h"
@@ -94,9 +93,9 @@ void thrd_yield(void) {
       }
 
     } else if (curr_thrd->state == THRD_DEAD) // all threads are dead, close the program
-      _exit(0);
+      _Exit(0);
     else // all threads blocked with no holders
-      _exit(1);
+      _Exit(1);
   }
 
   // pop the head
