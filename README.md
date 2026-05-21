@@ -3457,6 +3457,86 @@ static inline size_t align_to_page(size_t size) {
 }
 ```
 
+#### Windows ABI differences
+
+In addition to the timer mechanism, the [Windows x86_64 ABI](https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170) differs from the [System V ABI](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf) in two crucial ways:
+1. Instead of `%rdi` and `%rsi`, Windows passes the first two arguments in `%rcx` and `%rdx`.
+2. On Windows, the `%rdi` and `%rsi` registers are also considered callee-saved.
+
+That's why we need to create new assembly file, `src/arch/x86_64/context_win64.S`.
+
+```gas
+  .text
+  .align 16
+  .global thrd_switch
+
+thrd_switch:
+  /* push callee-saved registers onto the current stack */
+  pushq %rbx
+  pushq %rbp
+  pushq %rdi
+  pushq %rsi
+  pushq %r12
+  pushq %r13
+  pushq %r14
+  pushq %r15
+
+  /* save the current stack pointer into old_tcb */
+  /* old_tcb->rsp is at offset 0 */
+  movq %rsp, (%rcx)
+
+  /* load the new stack pointer */
+  movq (%rdx), %rsp
+
+  /* pop the registers (reverse order to push) */
+  popq %r15
+  popq %r14
+  popq %r13
+  popq %r12
+  popq %rsi
+  popq %rdi
+  popq %rbp
+  popq %rbx
+
+  /* jump to new thread */
+  ret
+```
+
+We also need to update `CMakeLists.txt` to pick the correct assembly file during compilation.
+
+```cmake
+// set ...
+
+if(WIN32)
+  set(ARCH_SRC src/arch/x86_64/context_win64.S)
+else()
+  set(ARCH_SRC src/arch/x86_64/context_unix.S)
+endif()
+
+add_executable(demo
+  ${ARCH_SRC}
+  demo/demo.c
+  src/tcb.c
+  src/scheduler.c
+  src/platform.c
+  src/pool.c
+  src/mutex.c
+  src/cond.c
+  src/heap.c
+)
+```
+
+This means our `tcb_init` function needs to allocate space for 8 registers when setting up the initial stack frame.
+Replace the old `#define CALLEE_REG_CNT 6` with this:
+
+```c
+#ifdef _WIN32
+  #define CALLEE_REG_CNT 8
+#else
+  #define CALLEE_REG_CNT 6
+#endif
+```
+
 #### ARM64
 
 ---
