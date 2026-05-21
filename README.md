@@ -202,6 +202,16 @@ The step-by-step educational guide, along with a snapshot of the code at each st
 
 ## Sources
 
+* [Startup of glibc-based programs, GNU](https://www.gnu.org/software/hurd/glibc/startup.html)
+* [Page (computer memory) - wikipedia](https://en.wikipedia.org/wiki/Page_(computer_memory))
+* [How to use exit safale from any thread, SO](https://stackoverflow.com/questions/57161596/how-to-use-exit-safely-from-any-thread)
+* [`pthread_join` - Linux man page](https://man7.org/linux/man-pages/man3/pthread_join.3.html)
+* [Understanding Linux Process States by Yogesh Babar](https://access.redhat.com/sites/default/files/attachments/processstates_20120831.pdf)
+* [`pthread_mutex_lock` - Linux man page](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3.html)
+* [Binary heaps, Carnegie Mellon University](https://www.andrew.cmu.edu/course/15-121/lectures/Binary%20Heaps/heaps.html)
+* [Preemption (computing) - wikipedia](https://en.wikipedia.org/wiki/Preemption_(computing))
+* [Windows Fibers by Microsoft](https://learn.microsoft.com/en-us/windows/win32/procthread/fibers)
+* [Trap flag - wikipedia](https://en.wikipedia.org/wiki/Trap_flag)
 * [Thread control block - wikipedia](https://en.wikipedia.org/wiki/Thread_control_block)
 * [Concurrent programming by begriffs](https://begriffs.com/posts/2020-03-23-concurrent-programming.html)
 * [Threads in C are Pain by Tsoding](https://youtu.be/f-IlYeyTwzY?si=fGNUyaHwZ7GuoHle)
