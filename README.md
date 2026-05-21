@@ -164,6 +164,7 @@ The tutorial expects a prior knowledge of the *C* language, as well as a deeper 
 An ability to read *assembly* is also recommended. 
 
 The step-by-step educational guide, along with a snapshot of the code at each step, can be found in the [guide/](guide/) directory:
+
 0. [Build setup](guide/00-build-setup/README.md)
 1. [Context switching](guide/01-context-switching/README.md)
 2. [Cooperative scheduling](guide/02-cooperative-scheduling/README.md)
