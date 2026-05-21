@@ -1,7 +1,9 @@
 #ifdef __APPLE__
   #define SYM_SWITCH _thrd_switch
+  #define SYM_TRAMP  _thrd_tramp
 #else
   #define SYM_SWITCH thrd_switch
+  #define SYM_TRAMP  thrd_tramp
 #endif
 
   .text
@@ -39,3 +41,8 @@ SYM_SWITCH:
 
   /* jump to new thread */
   ret
+
+  .global SYM_TRAMP
+
+SYM_TRAMP:
+  br x19
