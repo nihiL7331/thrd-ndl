@@ -50,11 +50,6 @@ tcb_t* tcb_init(void (*entry_point)(void)) {
   size_t size = THRD_STACK_SIZE + page_size();
   tcb->rsp = (uint8_t*)tcb->bsp + size;
 
-  tcb->join_queue_hd = NULL;
-  tcb->join_queue_tl = NULL;
-
-  tcb->wakeup_time = 0;
-
   tcb->user_proc = entry_point;
 
   // set up the stack frame.
