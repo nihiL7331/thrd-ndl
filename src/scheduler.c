@@ -65,9 +65,11 @@ void thrd_yield(void) {
   uint64_t curr_time_ms = get_os_time();
   tcb_t* sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
   while (sleep_hd != NULL && curr_time_ms >= sleep_hd->wakeup_time) {
-    tcb_t* awake_thrd = heap_pop(&sleep_queue);
-    awake_thrd->state = THRD_READY;
-    thrd_enqueue(awake_thrd, &rdy_queue_hd, &rdy_queue_tl);
+    heap_pop(&sleep_queue);
+
+    sleep_hd->state = THRD_READY;
+    thrd_enqueue(sleep_hd, &rdy_queue_hd, &rdy_queue_tl);
+
     sleep_hd = (tcb_t*)heap_peek(&sleep_queue);
   }
 
