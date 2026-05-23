@@ -148,14 +148,14 @@ int thrd_create(thrd_t* out_thread, void (*func)(void)) {
   if (out_thread == NULL || func == NULL)
     return THRD_EINVAL;
 
+  preempt_disable();
+
   tcb_t* new_thrd = tcb_init(func);
   if (new_thrd == NULL)
     return THRD_ENOMEM;
 
   // pass the address to the pointer given by the user
   *out_thread = (thrd_t)new_thrd;
-
-  preempt_disable();
 
   // push to ready queue
   thrd_enqueue(new_thrd, &rdy_queue_hd, &rdy_queue_tl);
