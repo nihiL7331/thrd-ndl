@@ -81,6 +81,9 @@ int mutex_unlock(mutex_t* mutex) {
 }
 
 int mutex_trylock(mutex_t* mutex) {
+  if (mutex == NULL)
+    return THRD_EINVAL;
+
   preempt_disable();
 
   // if mutex is unlocked then lock it,
