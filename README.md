@@ -132,7 +132,7 @@ Functions that return `int` use these codes:
 * `int thrd_create(thrd_t* out_thread, void (*func)(void))` - creates a new thread. Returns `THRD_SUCCESS` or `THRD_ENOMEM` if the pool is exhausted.
 * `void thrd_yield` - voluntarily hands control to the next ready thread.
 * `void thrd_sleep(uint64_t time_ms)` - suspends the current thread for at least `time_ms` milliseconds.
-* `int thrd_join(thrd_t thrd)` - blocks until `thrd` finishes. Returns `THRD_SUCCESS` on success or if passed argument is already dead, `THRD_EINVAL` if passed argument is `NULL` or the current running thread.
+* `int thrd_join(thrd_t thrd)` - blocks until `thrd` finishes. Returns `THRD_SUCCESS` on success, `THRD_EINVAL` if passed argument is `NULL` or the current running thread.
 * `void thrd_exit` - explicitly exits the current thread. It's called implicitly when the thread function returns.
 * `void thrd_dump` - writes a snapshot of the scheduler state to `stderr`, intended as a debugging procedure, safe to call from any thread.
 
