@@ -25,7 +25,7 @@ typedef struct {
 
 int           thrd_init(void);
 void          thrd_yield(void);
-int           thrd_create(thrd_t* out_thread, void (*entry)(void));
+int           thrd_create(thrd_t* out_thrd, void (*entry)(void));
 noreturn void thrd_exit(void);
 int           thrd_join(thrd_t thrd);
 

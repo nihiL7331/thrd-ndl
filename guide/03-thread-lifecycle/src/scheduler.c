@@ -109,8 +109,8 @@ int thrd_init(void) {
   return THRD_SUCCESS;
 }
 
-int thrd_create(thrd_t* out_thread, void (*entry)(void)) {
-  if (out_thread == NULL || entry == NULL)
+int thrd_create(thrd_t* out_thrd, void (*entry)(void)) {
+  if (out_thrd == NULL || entry == NULL)
     return THRD_EINVAL;
 
   tcb_t* new_thrd = tcb_init(entry);
@@ -118,7 +118,7 @@ int thrd_create(thrd_t* out_thread, void (*entry)(void)) {
     return THRD_ENOMEM;
 
   // pass the address to the pointer given by the user
-  *out_thread = (thrd_t)new_thrd;
+  *out_thrd = (thrd_t)new_thrd;
 
   // push to ready queue
   rdy_enqueue(new_thrd);
