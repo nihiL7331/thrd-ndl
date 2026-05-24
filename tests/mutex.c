@@ -3,11 +3,11 @@
 #include <assert.h>
 
 volatile int shared_cntr = 0;
-mutex_t cntr_mutex;
+mtx_t cntr_mtx;
 
 void inc_task(void) {
   for (int i = 0; i < 10000; ++i) {
-    mutex_lock(&cntr_mutex);
+    mtx_lock(&cntr_mtx);
 
     int local_val = shared_cntr;
 
@@ -16,7 +16,7 @@ void inc_task(void) {
     local_val++;
     shared_cntr = local_val;
 
-    mutex_unlock(&cntr_mutex);
+    mtx_unlock(&cntr_mtx);
 
     thrd_yield();
   }
@@ -25,7 +25,7 @@ void inc_task(void) {
 int main(void) {
   assert(thrd_init() == THRD_SUCCESS && "failed to main initialize");
 
-  mutex_init(&cntr_mutex);
+  mtx_init(&cntr_mtx);
 
   thrd_t t1, t2;
 

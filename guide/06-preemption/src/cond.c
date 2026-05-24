@@ -13,8 +13,8 @@ int cond_init(cond_t* cond) {
   return THRD_SUCCESS;
 }
 
-int cond_wait(cond_t* cond, mutex_t* mutex) {
-  if (cond == NULL || mutex == NULL || mutex->owner != get_curr_thrd())
+int cond_wait(cond_t* cond, mtx_t* mtx) {
+  if (cond == NULL || mtx == NULL || mtx->owner != get_curr_thrd())
     return THRD_EINVAL;
 
   preempt_disable();
@@ -27,7 +27,7 @@ int cond_wait(cond_t* cond, mutex_t* mutex) {
 
   // unlock mutex so other thread can grab 
   // the lock and change the shared data
-  mutex_unlock(mutex);
+  mtx_unlock(mtx);
 
   preempt_enable();
 
@@ -35,7 +35,7 @@ int cond_wait(cond_t* cond, mutex_t* mutex) {
   thrd_yield();
 
   // lock back the mutex before returning to the caller
-  mutex_lock(mutex);
+  mtx_lock(mtx);
 
   return THRD_SUCCESS;
 }

@@ -5,20 +5,20 @@
 #include <thrd_ndl/thrd_ndl.h>
 #include <string.h>
 
-int mutex_init(mutex_t* mutex) {
-  if (mutex == NULL)
+int mtx_init(mtx_t* mtx) {
+  if (mtx == NULL)
     return THRD_EINVAL;
 
-  memset(mutex, 0, sizeof(*mutex));
+  memset(mtx, 0, sizeof(*mtx));
 
   return THRD_SUCCESS;
 }
 
-int mutex_trylock(mutex_t* mutex) {
+int mtx_trylock(mtx_t* mtx) {
   preempt_disable();
 
-  if (mutex->owner == NULL) {
-    mutex->owner = get_curr_thrd();
+  if (mtx->owner == NULL) {
+    mtx->owner = get_curr_thrd();
     preempt_enable();
     return THRD_SUCCESS;
   }
@@ -28,11 +28,11 @@ int mutex_trylock(mutex_t* mutex) {
   return THRD_EBUSY;
 }
 
-int mutex_lock(mutex_t* mutex) {
-  if (mutex == NULL)
+int mtx_lock(mtx_t* mtx) {
+  if (mtx == NULL)
     return THRD_EINVAL;
 
-  if (mutex_trylock(mutex) == THRD_SUCCESS)
+  if (mtx_trylock(mtx) == THRD_SUCCESS)
     return THRD_SUCCESS;
 
   preempt_disable();
@@ -40,7 +40,7 @@ int mutex_lock(mutex_t* mutex) {
   tcb_t* curr_thrd = get_curr_thrd();
   curr_thrd->state = THRD_BLOCKED;
 
-  thrd_enqueue(curr_thrd, (tcb_t**)&mutex->wait_queue_hd, (tcb_t**)&mutex->wait_queue_tl);
+  thrd_enqueue(curr_thrd, (tcb_t**)&mtx->wait_queue_hd, (tcb_t**)&mtx->wait_queue_tl);
 
   preempt_enable();
 
@@ -49,20 +49,20 @@ int mutex_lock(mutex_t* mutex) {
   return THRD_SUCCESS;
 }
 
-int mutex_unlock(mutex_t* mutex) {
-  if (mutex == NULL || mutex->owner != get_curr_thrd())
+int mtx_unlock(mtx_t* mtx) {
+  if (mtx == NULL || mtx->owner != get_curr_thrd())
     return THRD_EINVAL;
 
   preempt_disable();
 
-  if (mutex->wait_queue_hd == NULL) {
-    mutex->owner = NULL;
+  if (mtx->wait_queue_hd == NULL) {
+    mtx->owner = NULL;
     preempt_enable();
     return THRD_SUCCESS;
   }
 
-  tcb_t* pop_thrd = thrd_dequeue((tcb_t**)&mutex->wait_queue_hd, (tcb_t**)&mutex->wait_queue_tl);
-  mutex->owner = pop_thrd;
+  tcb_t* pop_thrd = thrd_dequeue((tcb_t**)&mtx->wait_queue_hd, (tcb_t**)&mtx->wait_queue_tl);
+  mtx->owner = pop_thrd;
   resume_thrd(pop_thrd);
 
   preempt_enable();

@@ -5,17 +5,17 @@
 #include <string.h>
 #include <thrd_ndl/thrd_ndl.h>
 
-int mutex_init(mutex_t* mutex) {
-  if (mutex == NULL)
+int mtx_init(mtx_t* mtx) {
+  if (mtx == NULL)
     return THRD_EINVAL;
 
-  memset((void*)mutex, 0x0, sizeof(*mutex));
+  memset((void*)mtx, 0x0, sizeof(*mtx));
 
   return THRD_SUCCESS;
 }
 
-int mutex_lock(mutex_t* mutex) {
-  if (mutex == NULL)
+int mtx_lock(mtx_t* mtx) {
+  if (mtx == NULL)
     return THRD_EINVAL;
 
   preempt_disable();
@@ -24,8 +24,8 @@ int mutex_lock(mutex_t* mutex) {
 
   // if mutex is unlocked,
   // then lock it and return
-  if (mutex->owner == NULL) {
-    mutex->owner = (thrd_t)curr_thrd;
+  if (mtx->owner == NULL) {
+    mtx->owner = (thrd_t)curr_thrd;
     preempt_enable();
     return THRD_SUCCESS;
   }
@@ -37,7 +37,7 @@ int mutex_lock(mutex_t* mutex) {
   curr_thrd->state = THRD_BLOCKED;
 
   // push 'curr_thrd' to mutex wait queue
-  thrd_enqueue(curr_thrd, (tcb_t**)&mutex->wait_queue_hd, (tcb_t**)&mutex->wait_queue_tl);
+  thrd_enqueue(curr_thrd, (tcb_t**)&mtx->wait_queue_hd, (tcb_t**)&mtx->wait_queue_tl);
 
   preempt_enable();
 
@@ -51,26 +51,26 @@ int mutex_lock(mutex_t* mutex) {
   return THRD_SUCCESS;
 }
 
-int mutex_unlock(mutex_t* mutex) {
-  if (mutex == NULL || mutex->owner != get_curr_thrd())
+int mtx_unlock(mtx_t* mtx) {
+  if (mtx == NULL || mtx->owner != get_curr_thrd())
     return THRD_EINVAL;
 
   preempt_disable();
 
   // if the wait queue is empty,
   // then just mark mutex as unlocked
-  if (mutex->wait_queue_hd == NULL) {
-    mutex->owner = NULL;
+  if (mtx->wait_queue_hd == NULL) {
+    mtx->owner = NULL;
     preempt_enable();
     return THRD_SUCCESS;
   }
 
   // if there's at least one thread waiting in the queue
   // then pop one thread off
-  tcb_t* pop_thrd = thrd_dequeue((tcb_t**)&mutex->wait_queue_hd, (tcb_t**)&mutex->wait_queue_tl);
+  tcb_t* pop_thrd = thrd_dequeue((tcb_t**)&mtx->wait_queue_hd, (tcb_t**)&mtx->wait_queue_tl);
 
   // make it the new mutex owner
-  mutex->owner = pop_thrd;
+  mtx->owner = pop_thrd;
 
   // make it ready again and push it to ready queue
   resume_thrd(pop_thrd);
@@ -80,15 +80,15 @@ int mutex_unlock(mutex_t* mutex) {
   return THRD_SUCCESS;
 }
 
-int mutex_trylock(mutex_t* mutex) {
-  if (mutex == NULL)
+int mtx_trylock(mtx_t* mtx) {
+  if (mtx == NULL)
     return THRD_EINVAL;
 
   preempt_disable();
 
   // if mutex is unlocked then lock it,
-  if (mutex->owner == NULL) {
-    mutex->owner = (thrd_t)get_curr_thrd();
+  if (mtx->owner == NULL) {
+    mtx->owner = (thrd_t)get_curr_thrd();
     preempt_enable();
     return THRD_SUCCESS;
   }

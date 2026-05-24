@@ -138,15 +138,15 @@ Functions that return `int` use these codes:
 
 ### Mutexes
 
-* `int mutex_init(mutex_t* mutex)` - initializes the mutex, must be called before first use. Returns `THRD_EINVAL` if `mutex == NULL`, `THRD_SUCCESS` otherwise.
-* `int mutex_lock(mutex_t* mutex)` - acquires the `mutex`, blocking the caller if already held. Returns `THRD_EINVAL` if `mutex == NULL`, `THRD_SUCCESS` otherwise.
-* `int mutex_trylock(mutex_t* mutex)` - attempts to acquire `mutex` without blocking. Returns `THRD_SUCCESS` if acquired, `THRD_EBUSY` if already held.
-* `int mutex_unlock(mutex_t* mutex)` - releases the `mutex` and wakes one waiting thread.  Returns `THRD_SUCCESS` if successfuly unlocked, returns `THRD_EINVAL` if the caller isn't the owner or `mutex` is `NULL`.
+* `int mtx_init(mtx_t* mtx)` - initializes `mtx`, must be called before first use. Returns `THRD_EINVAL` if `mtx == NULL`, `THRD_SUCCESS` otherwise.
+* `int mtx_lock(mtx_t* mtx)` - acquires `mtx`, blocking the caller if already held. Returns `THRD_EINVAL` if `mtx == NULL`, `THRD_SUCCESS` otherwise.
+* `int mtx_trylock(mtx_t* mtx)` - attempts to acquire `mtx` without blocking. Returns `THRD_SUCCESS` if acquired, `THRD_EBUSY` if already held.
+* `int mtx_unlock(mtx_t* mtx)` - releases the `mtx` and wakes one waiting thread.  Returns `THRD_SUCCESS` if successfuly unlocked, returns `THRD_EINVAL` if the caller isn't the owner or `mtx` is `NULL`.
 
 ### Condition variables
 
 * `int cond_init(cond_t* cond)` - initializes the cond, must be called before first use. Returns `THRD_EINVAL` if `cond == NULL`, `THRD_SUCCESS` otherwise.
-* `int cond_wait(cond_t* cond, mutex_t* mutex)` - releases `mutex` and blocks, reacquires on wake. Returns `THRD_SUCCESS` was successfully awaited. Returns `THRD_EINVAL` if `cond` or `mutex` is `NULL`, or if the caller isn't the owner of `mutex`.
+* `int cond_wait(cond_t* cond, mtx_t* mtx)` - releases `mtx` and blocks, reacquires on wake. Returns `THRD_SUCCESS` was successfully awaited. Returns `THRD_EINVAL` if `cond` or `mtx` is `NULL`, or if the caller isn't the owner of `mtx`.
 * `int cond_signal(cond_t* cond)` - wakes one thread waiting on the `cond` condition. Returns `THRD_EINVAL` if `cond == NULL`, `THRD_SUCCESS` otherwise.
 * `int cond_bcast(cond_t* cond)` - wakes all threads waiting on the `cond` condition. Returns `THRD_EINVAL` if `cond == NULL`, `THRD_SUCCESS` otherwise.
 
@@ -180,6 +180,8 @@ The step-by-step educational guide, along with a snapshot of the code at each st
 
 ## Roadmap
 
+- [ ] Rework `thrd_dump`.
+- [ ] Add float registers to context switch for Windows.
 - [x] Split the README per section to `tutorial/sectionX/README.md`s.
 - [x] Cover the Porting section implementation in README.
 - [x] Cover the Preemption section implementation in README.
@@ -190,7 +192,7 @@ The step-by-step educational guide, along with a snapshot of the code at each st
 - [x] Cover the Context switching section of README implementation.
 - [x] Replace the sleep queue with a binary min-heap.
 - [x] Add a debugging `thrd_dump` method.
-- [x] Implement `mutex_trylock`.
+- [x] Implement `mtx_trylock`.
 - [x] Make a introductory README section.
 - [x] Find and implement a good and easy solution for preemption. (it isn't easy)
 - [x] Optimize allocation via a Pool allocator.

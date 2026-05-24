@@ -17,7 +17,7 @@ typedef struct {
   thrd_t owner;         // 'NULL' when no owner, otherwise the holding thread
   thrd_t wait_queue_hd; // head of threads parked on this mutex
   thrd_t wait_queue_tl; // tail of threads parked on this mutex
-} mutex_t;
+} mtx_t;
 
 typedef struct {
   thrd_t wait_queue_hd; // head of threads parked on this condition
@@ -31,13 +31,13 @@ noreturn void thrd_exit(void);
 int           thrd_join(thrd_t thrd);
 void          thrd_sleep(uint64_t time_ms);
 
-int mutex_init(mutex_t* mutex);
-int mutex_trylock(mutex_t* mutex);
-int mutex_lock(mutex_t* mutex);
-int mutex_unlock(mutex_t* mutex);
+int mtx_init(mtx_t* mtx);
+int mtx_trylock(mtx_t* mtx);
+int mtx_lock(mtx_t* mtx);
+int mtx_unlock(mtx_t* mtx);
 
 int cond_init(cond_t* cond);
-int cond_wait(cond_t* cond, mutex_t* mutex);
+int cond_wait(cond_t* cond, mtx_t* mtx);
 int cond_signal(cond_t* cond);
 int cond_bcast(cond_t* cond);
 

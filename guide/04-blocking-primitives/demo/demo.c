@@ -1,38 +1,38 @@
 #include <stdio.h>
 #include <thrd_ndl/thrd_ndl.h>
 
-static mutex_t mutex;
-static cond_t  cond;
+static mtx_t  mtx;
+static cond_t cond;
 
 static int curr_turn = 0;
 
 static void func_a(void) {
   for (int i = 0; i < 3; ++i) {
-    mutex_lock(&mutex);
+    mtx_lock(&mtx);
 
     while (curr_turn != 0)
-      cond_wait(&cond, &mutex);
+      cond_wait(&cond, &mtx);
 
     printf("A: %d\n", i);
     curr_turn = 1;
 
     cond_signal(&cond);
-    mutex_unlock(&mutex);
+    mtx_unlock(&mtx);
   }
 }
 
 static void func_b(void) {
   for (int i = 0; i < 3; ++i) {
-    mutex_lock(&mutex);
+    mtx_lock(&mtx);
 
     while (curr_turn != 1)
-      cond_wait(&cond, &mutex);
+      cond_wait(&cond, &mtx);
 
     printf("B: %d\n", i);
     curr_turn = 0;
 
     cond_signal(&cond);
-    mutex_unlock(&mutex);
+    mtx_unlock(&mtx);
   }
 }
 
@@ -40,7 +40,7 @@ int main(void) {
   if (thrd_init() != THRD_SUCCESS)
     return 1;
 
-  mutex_init(&mutex);
+  mtx_init(&mtx);
   cond_init(&cond);
 
   thrd_t thrd_a, thrd_b;
