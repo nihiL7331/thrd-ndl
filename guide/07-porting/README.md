@@ -383,7 +383,7 @@ A complete Windows port requires either manually updating the TIB during `thrd_s
 
 To run on ARM processors, the assembly context switch must change.
 
-Instead of pushing `%rbx`, `%rbp`, etc., the ARM64 calling convention requires us to preserve registers `x19-x29`.
+Instead of pushing `%rbx`, `%rbp`, etc., the ARM64 calling convention requires us to preserve registers `x19-x29`, as well as `d8-d15` (lower 64 bits of the vector registers).
 Here's the equivalent `src/arch/arm64/context_arm64.S` file:
 
 ```gas
@@ -407,6 +407,12 @@ SYM_SWITCH:
   stp x27, x28, [sp, #-16]!
   stp x29, x30, [sp, #-16]!
 
+  /* push float registers */
+  stp d8,  d9,  [sp, #-16]!
+  stp d10, d11, [sp, #-16]!
+  stp d12, d13, [sp, #-16]!
+  stp d14, d15, [sp, #-16]!
+
   /* save the current stack pointer into old_tcb
      old_tcb->rsp is at offset 0
      move to tmp register first */
@@ -416,6 +422,12 @@ SYM_SWITCH:
   /* load the new stack pointer */
   ldr x9, [x1]
   mov sp, x9
+
+  /* pop float registers in reverse */
+  ldp d14, d15, [sp], #16
+  ldp d12, d13, [sp], #16
+  ldp d10, d11, [sp], #16
+  ldp d8,  d9,  [sp], #16
 
   /* pop the registers (reverse order to push)
      post increment sp by 16 */
@@ -434,9 +446,9 @@ We also need to update `CALLEE_REG_CNT` for ARM64 in `src/tcb.c`:
 
 ```c
 #ifdef __aarch64__
-  #define CALLEE_REG_CNT 12
+  #define CALLEE_REG_CNT 20
 #elif defined(_WIN32)
-  #define CALLEE_REG_CNT 8
+  #define CALLEE_REG_CNT 28
 #else
   #define CALLEE_REG_CNT 6
 #endif
@@ -499,9 +511,9 @@ To support it across all architectures, we need to update the preprocessor direc
 
 ```c
 #ifdef __aarch64__
-  #define CALLEE_REG_CNT 12
-  #define X19_REG_POS 10
-  #define X30_REG_POS 1
+  #define CALLEE_REG_CNT 20
+  #define X19_REG_POS 18
+  #define X30_REG_POS 9
   extern void thrd_tramp(void);
 #elif defined(_WIN32)
   #define CALLEE_REG_CNT 8

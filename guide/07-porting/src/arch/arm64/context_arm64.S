@@ -20,6 +20,12 @@ SYM_SWITCH:
   stp x27, x28, [sp, #-16]!
   stp x29, x30, [sp, #-16]!
 
+  /* push float registers */
+  stp d8,  d9,  [sp, #-16]!
+  stp d10, d11, [sp, #-16]!
+  stp d12, d13, [sp, #-16]!
+  stp d14, d15, [sp, #-16]!
+
   /* save the current stack pointer into old_tcb
      old_tcb->rsp is at offset 0
      move to tmp register first */
@@ -29,6 +35,12 @@ SYM_SWITCH:
   /* load the new stack pointer */
   ldr x9, [x1]
   mov sp, x9
+
+  /* pop float registers in reverse */
+  ldp d14, d15, [sp], #16
+  ldp d12, d13, [sp], #16
+  ldp d10, d11, [sp], #16
+  ldp d8,  d9,  [sp], #16
 
   /* pop the registers (reverse order to push)
      post increment sp by 16 */

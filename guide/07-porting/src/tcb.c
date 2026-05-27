@@ -9,9 +9,9 @@
 #include <string.h> // include this for 'memset'
 
 #ifdef __aarch64__
-  #define CALLEE_REG_CNT 12
-  #define X19_REG_POS 10
-  #define X30_REG_POS 1
+  #define CALLEE_REG_CNT 20
+  #define X19_REG_POS 18
+  #define X30_REG_POS 9
   extern void thrd_tramp(void);
 #elif defined(_WIN32)
   #define CALLEE_REG_CNT 28

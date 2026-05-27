@@ -11,9 +11,9 @@
 #include <inttypes.h>
 
 #ifdef __aarch64__
-  #define CALLEE_REG_CNT 12
-  #define X19_REG_POS 10
-  #define X30_REG_POS 1
+  #define CALLEE_REG_CNT 20
+  #define X19_REG_POS 18
+  #define X30_REG_POS 9
 
   // required for implicit 'thrd_exit'
   extern void thrd_tramp(void);
