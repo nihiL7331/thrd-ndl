@@ -14,7 +14,7 @@
   #define X30_REG_POS 1
   extern void thrd_tramp(void);
 #elif defined(_WIN32)
-  #define CALLEE_REG_CNT 8
+  #define CALLEE_REG_CNT 28
 #else
   #define CALLEE_REG_CNT 6
 #endif
