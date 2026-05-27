@@ -15,6 +15,9 @@ int mtx_init(mtx_t* mtx) {
 }
 
 int mtx_trylock(mtx_t* mtx) {
+  if (mtx == NULL)
+    return THRD_EINVAL;
+
   preempt_disable();
 
   if (mtx->owner == NULL) {
