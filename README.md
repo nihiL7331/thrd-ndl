@@ -134,7 +134,7 @@ Functions that return `int` use these codes:
 * `void thrd_sleep(uint64_t time_ms)` - suspends the current thread for at least `time_ms` milliseconds.
 * `int thrd_join(thrd_t thrd)` - blocks until `thrd` finishes. Returns `THRD_SUCCESS` on success, `THRD_EINVAL` if passed argument is `NULL` or the current running thread.
 * `void thrd_exit` - explicitly exits the current thread. It's called implicitly when the thread function returns.
-* `void thrd_dump` - writes a snapshot of the scheduler state to `stderr`, intended as a debugging procedure, safe to call from any thread.
+<!-- * `void thrd_dump` - writes a snapshot of the scheduler state to `stderr`, intended as a debugging procedure, safe to call from any thread. -->
 
 ### Mutexes
 
