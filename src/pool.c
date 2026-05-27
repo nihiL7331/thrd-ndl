@@ -1,8 +1,7 @@
 #include "pool.h"
-#include "platform.h"
-#include <stddef.h>
+#include "platform.h"          // include this for `os_alloc`, `os_free`
+#include <thrd_ndl/thrd_ndl.h> // for return codes
 #include <stdint.h>
-#include <thrd_ndl/thrd_ndl.h>
 
 static inline size_t align_up(size_t size, size_t align);
 
@@ -10,15 +9,13 @@ int pool_new(pool_t* pool, size_t chunk_size, size_t chunk_align, size_t chunk_c
   if (pool == NULL || chunk_size == 0 || chunk_align == 0 || chunk_cnt == 0)
     return THRD_EINVAL;
 
-  pool->chunk_align = chunk_align;
-
   size_t min_chunk_size = chunk_size;
   if (sizeof(void*) > min_chunk_size)
     min_chunk_size = sizeof(void*);
 
-  pool->chunk_size = align_up(min_chunk_size, pool->chunk_align);
+  pool->chunk_size = align_up(min_chunk_size, chunk_align);
   if (pool->chunk_size > SIZE_MAX / chunk_cnt)
-    return THRD_EPOOL_SMALL;
+    return THRD_EINVAL;
 
   pool->total_size = pool->chunk_size * chunk_cnt;
 
@@ -49,10 +46,11 @@ void* pool_alloc(pool_t* pool) {
   if (pool == NULL)
     return NULL;
 
-  if (pool->free_hd == NULL) {
+  if (pool->free_hd == NULL)
     return NULL;
-  }
 
+  // each free chunk's first bytes 
+  // hold the address of the next free chunk
   void* ret_head = pool->free_hd;
   pool->free_hd = *(void**)pool->free_hd;
 
@@ -91,7 +89,7 @@ int pool_clear(pool_t* pool) {
   void** last_chunk = (void**)(raw_mem + (num_chunks - 1) * pool->chunk_size);
   *last_chunk = NULL;
   pool->free_hd = pool->start_ptr;
-  
+
   return THRD_SUCCESS;
 }
 
