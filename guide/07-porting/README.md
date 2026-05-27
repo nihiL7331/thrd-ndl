@@ -266,9 +266,10 @@ static inline size_t align_to_page(size_t size) {
 
 #### Windows ABI differences
 
-In addition to the timer mechanism, the [Windows x86_64 ABI](https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170) differs from the [System V ABI](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf) in two crucial ways:
+In addition to the timer mechanism, the [Windows x86_64 ABI](https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170) differs from the [System V ABI](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf) in three crucial ways:
 1. Instead of `%rdi` and `%rsi`, Windows passes the first two arguments in `%rcx` and `%rdx`.
 2. On Windows, the `%rdi` and `%rsi` registers are also considered callee-saved.
+3. While all `%xmm` registers are caller-saved on Linux, on Windows `%xmm6-%xmm15` are callee-saved.
 
 That's why we need to create new assembly file, `src/arch/x86_64/context_win64.S`.
 
@@ -287,6 +288,19 @@ thrd_switch:
   pushq %r13
   pushq %r14
   pushq %r15
+  
+  /* push callee-saved vector registers */
+  subq   $160,   %rsp
+  movups %xmm6,  0(%rsp)
+  movups %xmm7,  16(%rsp)
+  movups %xmm8,  32(%rsp)
+  movups %xmm9,  48(%rsp)
+  movups %xmm10, 64(%rsp)
+  movups %xmm11, 80(%rsp)
+  movups %xmm12, 96(%rsp)
+  movups %xmm13, 112(%rsp)
+  movups %xmm14, 128(%rsp)
+  movups %xmm15, 144(%rsp)
 
   /* save the current stack pointer into old_tcb */
   /* old_tcb->rsp is at offset 0 */
@@ -294,6 +308,19 @@ thrd_switch:
 
   /* load the new stack pointer */
   movq (%rdx), %rsp
+
+  /* restore vector registers */
+  movups 0(%rsp),   %xmm6
+  movups 16(%rsp),  %xmm7
+  movups 32(%rsp),  %xmm8
+  movups 48(%rsp),  %xmm9
+  movups 64(%rsp),  %xmm10
+  movups 80(%rsp),  %xmm11
+  movups 96(%rsp),  %xmm12
+  movups 112(%rsp), %xmm13
+  movups 128(%rsp), %xmm14
+  movups 144(%rsp), %xmm15
+  addq   $160,      %rsp
 
   /* pop the registers (reverse order to push) */
   popq %r15
@@ -333,12 +360,14 @@ add_executable(demo
 )
 ```
 
-This means our `tcb_init` function needs to allocate space for 8 registers when setting up the initial stack frame.
+This means our `tcb_init` function needs to allocate space for 18 registers when setting up the initial stack frame.
+However, 10 of those registers are _vector registers_, which are twice the size of a generic register we save.
+Hence, we need space for 28 64-byte registers.
 Replace the old `#define CALLEE_REG_CNT 6` with this:
 
 ```c
 #ifdef _WIN32
-  #define CALLEE_REG_CNT 8
+  #define CALLEE_REG_CNT 28
 #else
   #define CALLEE_REG_CNT 6
 #endif
